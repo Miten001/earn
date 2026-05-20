@@ -45,9 +45,13 @@ from typing import Optional
 # ============================================================================
 # >>>>>>>>>>>>>>>>>>>>>>>>>>  EDIT CREDENTIALS  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # ============================================================================
-MT5_LOGIN    = 12345678                  # apna account number
-MT5_PASSWORD = "YourPasswordHere"        # apna password
-MT5_SERVER   = "Exness-MT5Trial"         # broker server name (exact match)
+# RECOMMENDED: Keep MT5_LOGIN = 0 and just login MANUALLY in MT5 terminal first.
+# Bot will attach to existing session and AutoTrading will stay ON.
+# Only fill credentials if you want bot to switch accounts (this WILL disable
+# AutoTrading once - you'll have to click the AutoTrading button manually).
+MT5_LOGIN    = 0                         # 0 = use whatever account is already logged in MT5
+MT5_PASSWORD = ""                        # only needed if MT5_LOGIN > 0
+MT5_SERVER   = ""                        # only needed if MT5_LOGIN > 0
 MT5_PATH     = ""                        # optional: full path to terminal64.exe
 # ============================================================================
 
@@ -170,20 +174,26 @@ def mt5_connect():
     if acc is None:
         return None, f"no account info: {mt5.last_error()}"
 
-    # Step 3: check AutoTrading status
+    # Step 3: check AutoTrading status — wait for user to enable it (no restart needed)
     term = mt5.terminal_info()
     if term and not term.trade_allowed:
         print()
         print("=" * 70)
-        print("  (!) AUTOTRADING DISABLED IN MT5 TERMINAL")
+        print("  (!) AUTOTRADING IS OFF IN MT5 TERMINAL")
         print("=" * 70)
-        print("  MT5 ne automated trading off kar di hai (security feature).")
-        print("  FIX:")
-        print("    1. MT5 terminal khulein")
-        print("    2. Top-right me 'AutoTrading' button (Ctrl+E) click karein")
-        print("    3. Button GREEN ho jaye, phir script wapis run karein")
+        print("  MT5 me top-right 'AutoTrading' button (Ctrl+E) click karein.")
+        print("  Button GREEN hote hi bot automatically continue ho jayega.")
+        print("  (script ko stop nahi karna, bus button click karein)")
         print("=" * 70)
         print()
+        print("  Waiting for AutoTrading to be enabled", end="", flush=True)
+        while True:
+            time.sleep(2)
+            term = mt5.terminal_info()
+            if term and term.trade_allowed:
+                print("\n[+] AutoTrading is now ON. Continuing...")
+                break
+            print(".", end="", flush=True)
 
     return acc, "ok"
 
@@ -470,6 +480,11 @@ class BotEngine:
         info_state = {"symbol": sym, "bias": None, "sweep": False,
                       "choch": False, "fvg": False, "rr": None}
         try:
+            # Skip placing trades if AutoTrading is disabled (avoid errors / spam)
+            term = mt5.terminal_info()
+            if term and not term.trade_allowed:
+                # still compute info for dashboard but don't try to place orders
+                pass
             if open_count() + pending_count() >= MAX_OPEN_TRADES:
                 return info_state
             if open_count(sym) + pending_count(sym) >= MAX_TRADES_PER_PAIR:
@@ -532,6 +547,12 @@ class BotEngine:
             side = "BUY" if direction == "UP" else "SELL"
             lot = calc_lot(sym, entry, sl, RISK_PERCENT)
             if lot <= 0:
+                return info_state
+
+            # Final guard: don't try if AutoTrading off
+            term = mt5.terminal_info()
+            if term and not term.trade_allowed:
+                self.log(f"[~] {sym} {side} setup ready @ RR={rr:.2f} but AutoTrading is OFF - enable it (Ctrl+E)")
                 return info_state
 
             ticket = place_pending_limit(sym, side, lot, entry, sl, target,
