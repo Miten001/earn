@@ -64,9 +64,9 @@ SYMBOLS_CRYPTO = [
 ]
 
 # Risk
-RISK_PERCENT = 3.0
-MAX_OPEN_TRADES     = 8
-MAX_TRADES_PER_PAIR = 1
+RISK_PERCENT = 4.0           # 4% per trade (aggressive — top of 3-4% range)
+MAX_OPEN_TRADES     = 999    # effectively unlimited — take every valid setup
+MAX_TRADES_PER_PAIR = 1      # still 1 per symbol (avoid concentration)
 MAGIC_NUMBER = 888001
 
 # Killzones (UTC). Only forex trades in killzone; crypto trades 24/7.

@@ -67,7 +67,7 @@ SYMBOLS_FOREX  = [
 SYMBOLS_CRYPTO = ["BTCUSD", "ETHUSD"]
 
 # Risk per trade as % of balance
-RISK_PERCENT = 3.0
+RISK_PERCENT = 4.0           # 4% per trade (aggressive — top of 3-4% range)
 
 # Initial Risk:Reward target (fallback TP if trailing fails)
 INITIAL_RR = 2.0
@@ -78,9 +78,9 @@ LOCK_HALF_AT_R = 1.5     # Move SL to +0.5R when profit reaches 1.5R
 TRAIL_START_R  = 2.0     # Start ATR-trailing after this
 ATR_TRAIL_MULT = 1.5     # Chandelier exit distance
 
-# Trade caps
-MAX_OPEN_TRADES     = 8
-MAX_TRADES_PER_PAIR = 1
+# Trade caps — take every valid setup
+MAX_OPEN_TRADES     = 999    # effectively unlimited
+MAX_TRADES_PER_PAIR = 1      # still 1 per symbol
 
 # Higher TF trend filter
 HTF_EMA_FAST = 50
