@@ -142,14 +142,48 @@ TF_MAP = {
 
 
 def mt5_connect():
-    kw = {"login": MT5_LOGIN, "password": MT5_PASSWORD, "server": MT5_SERVER}
+    """
+    Smart connect that avoids "automated trading disabled" error:
+    1. First try connecting to existing MT5 session (no account switch).
+    2. Only switch accounts if the current login doesn't match.
+    3. After connect, check trade_allowed flag and warn loudly.
+    """
+    init_kwargs = {}
     if MT5_PATH:
-        kw["path"] = MT5_PATH
-    if not mt5.initialize(**kw):
+        init_kwargs["path"] = MT5_PATH
+
+    # Step 1: try to attach to running terminal first
+    if not mt5.initialize(**init_kwargs):
         return None, f"init failed: {mt5.last_error()}"
+
     acc = mt5.account_info()
+
+    # Step 2: only call login if account doesn't match config
+    need_switch = (acc is None) or (MT5_LOGIN and acc.login != MT5_LOGIN)
+    if need_switch and MT5_LOGIN:
+        ok = mt5.login(login=MT5_LOGIN, password=MT5_PASSWORD, server=MT5_SERVER)
+        if not ok:
+            return None, f"login failed: {mt5.last_error()}"
+        acc = mt5.account_info()
+
     if acc is None:
-        return None, f"login failed: {mt5.last_error()}"
+        return None, f"no account info: {mt5.last_error()}"
+
+    # Step 3: check AutoTrading status
+    term = mt5.terminal_info()
+    if term and not term.trade_allowed:
+        print()
+        print("=" * 70)
+        print("  (!) AUTOTRADING DISABLED IN MT5 TERMINAL")
+        print("=" * 70)
+        print("  MT5 ne automated trading off kar di hai (security feature).")
+        print("  FIX:")
+        print("    1. MT5 terminal khulein")
+        print("    2. Top-right me 'AutoTrading' button (Ctrl+E) click karein")
+        print("    3. Button GREEN ho jaye, phir script wapis run karein")
+        print("=" * 70)
+        print()
+
     return acc, "ok"
 
 
@@ -1041,6 +1075,9 @@ def main():
         sys.exit(1)
     print(f"[+] Logged in: {acc.login} | Balance: {acc.balance:.2f} {acc.currency}")
     print(f"    Server: {acc.server} | Leverage: 1:{acc.leverage}")
+    term = mt5.terminal_info()
+    if term:
+        print(f"    AutoTrading: {'ON ✓' if term.trade_allowed else 'OFF (!) - enable in MT5 terminal'}")
     print(f"[*] Risk per trade: {RISK_PERCENT}% | Max trades: {MAX_OPEN_TRADES}")
     print(f"[*] Killzones (UTC): London {LONDON_KZ}, NY {NEWYORK_KZ}")
     print(f"[*] In killzone now: {in_killzone()}")
