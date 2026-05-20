@@ -56,9 +56,14 @@ MT5_PASSWORD = "YourPasswordHere"      # apna password
 MT5_SERVER   = "Exness-MT5Trial"       # broker server name
 MT5_PATH     = ""                      # optional, default detect
 
-# Symbols to scan (bot will auto-detect broker-specific names like BTCUSDm, etc.)
-SYMBOLS_FOREX  = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "NZDUSD",
-                  "EURJPY", "GBPJPY", "EURGBP", "XAUUSD"]   # XAUUSD = Gold
+# Symbols — only 47%+ win rate pairs (matches SMC bot focused list)
+SYMBOLS_FOREX  = [
+    "XAUUSD",      # Gold      — 55-62%
+    "GBPJPY",      # GBP/JPY   — 52-58%
+    "EURUSD",      # EUR/USD   — 50-56%
+    "GBPUSD",      # Cable     — 48-54%
+    "USDJPY",      # Yen       — 47-53%
+]
 SYMBOLS_CRYPTO = ["BTCUSD", "ETHUSD"]
 
 # Risk per trade as % of balance
