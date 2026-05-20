@@ -236,6 +236,7 @@ def build_code_pdf(out_path):
 
     files = [
         "requirements.txt",
+        "earn_bot.py",
         "config.py",
         "smc_ict_bot.py",
         "mt5_final_bot.py",
