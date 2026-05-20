@@ -1,6 +1,7 @@
 """
 ================================================================================
   EARN BOT - All-in-One MT5 SMC/ICT Trading Bot with Live Dashboard
+                          made by @codex_here
 ================================================================================
 
 Features:
@@ -673,7 +674,7 @@ class Dashboard:
     def __init__(self, root, engine):
         self.root = root
         self.engine = engine
-        self.root.title("Earn Bot - Live Dashboard")
+        self.root.title("Earn Bot - Live Dashboard  |  made by @codex_here")
         self.root.geometry("1200x720")
         self.root.configure(bg="#0e1117")
 
@@ -1067,6 +1068,7 @@ def main():
 
     print("=" * 70)
     print("  EARN BOT - SMC/ICT MT5 Trading Bot with Dashboard")
+    print("                    made by @codex_here")
     print("=" * 70)
 
     acc, status = mt5_connect()
