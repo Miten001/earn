@@ -244,27 +244,99 @@ def calc_lot(sym, entry, sl, risk_pct):
     return round(lot, 2)
 
 
-def place_market_order(sym, side, lot, sl, tp, comment):
+RETCODE_MEANINGS = {
+    10004: "REQUOTE - price changed, retry",
+    10006: "REJECT - request rejected by broker",
+    10007: "CANCEL - request cancelled by trader",
+    10008: "PLACED - pending order placed",
+    10009: "DONE - executed",
+    10010: "DONE_PARTIAL - partial fill",
+    10011: "ERROR - common error",
+    10012: "TIMEOUT - request timed out",
+    10013: "INVALID - invalid request",
+    10014: "INVALID_VOLUME - lot too small/big",
+    10015: "INVALID_PRICE - price invalid",
+    10016: "INVALID_STOPS - SL/TP too close to price",
+    10017: "TRADE_DISABLED - autotrading disabled",
+    10018: "MARKET_CLOSED - market closed (weekend?)",
+    10019: "NO_MONEY - insufficient margin",
+    10020: "PRICE_CHANGED - price changed during execution",
+    10021: "PRICE_OFF - no quotes available",
+    10022: "INVALID_EXPIRATION - bad expiry time",
+    10023: "ORDER_CHANGED - state already changed",
+    10024: "TOO_MANY_REQUESTS - rate-limited",
+    10025: "NO_CHANGES - no parameter change",
+    10026: "AUTO_DISABLED_SERVER - autotrading disabled by server",
+    10027: "AUTO_DISABLED_CLIENT - autotrading disabled by terminal (Ctrl+E)",
+    10028: "LOCKED - request blocked",
+    10029: "FROZEN - order/position frozen",
+    10030: "FILL_MODE - filling type not supported (try ORDER_FILLING_RETURN/FOK)",
+    10031: "CONNECTION - no broker connection",
+    10032: "ONLY_REAL - operation only on real accounts",
+    10033: "LIMIT_ORDERS - max pending orders reached",
+    10034: "LIMIT_VOLUME - max volume reached",
+}
+
+
+def _send_with_fallback(req, log_fn=print):
+    """Try multiple filling modes if FILL_MODE error."""
+    for fm in (mt5.ORDER_FILLING_IOC, mt5.ORDER_FILLING_FOK, mt5.ORDER_FILLING_RETURN):
+        req["type_filling"] = fm
+        r = mt5.order_send(req)
+        if r is None:
+            log_fn(f"  order_send returned None: {mt5.last_error()}")
+            continue
+        if r.retcode == mt5.TRADE_RETCODE_DONE:
+            return r
+        # Fill-mode mismatch -> try next
+        if r.retcode == 10030:
+            log_fn(f"  fill mode {fm} not supported, retrying...")
+            continue
+        # Any other error -> return for caller to log
+        return r
+    return r
+
+
+def place_market_order(sym, side, lot, sl, tp, comment, log_fn=print):
     info = mt5.symbol_info(sym)
     tick = mt5.symbol_info_tick(sym)
     if info is None or tick is None or lot <= 0:
+        log_fn(f"[!] {sym} order skipped: info={info is not None} tick={tick is not None} lot={lot}")
         return None
     digits = info.digits
+    # Respect broker's min stop level
+    point = info.point
+    min_stop_pts = max(info.trade_stops_level, 0)
+    min_stop_dist = min_stop_pts * point
     if side == "BUY":
         price, otype = tick.ask, mt5.ORDER_TYPE_BUY
+        if min_stop_dist > 0:
+            sl = min(sl, price - min_stop_dist)
+            tp = max(tp, price + min_stop_dist)
     else:
         price, otype = tick.bid, mt5.ORDER_TYPE_SELL
+        if min_stop_dist > 0:
+            sl = max(sl, price + min_stop_dist)
+            tp = min(tp, price - min_stop_dist)
+
     req = {
         "action": mt5.TRADE_ACTION_DEAL,
         "symbol": sym, "volume": lot, "type": otype,
         "price": round(price, digits),
         "sl": round(sl, digits), "tp": round(tp, digits),
-        "deviation": 30, "magic": MAGIC_NUMBER, "comment": comment[:31],
+        "deviation": 50,                   # higher slippage tolerance for HFT
+        "magic": MAGIC_NUMBER, "comment": comment[:31],
         "type_time": mt5.ORDER_TIME_GTC,
         "type_filling": mt5.ORDER_FILLING_IOC,
     }
-    r = mt5.order_send(req)
-    if r is None or r.retcode != mt5.TRADE_RETCODE_DONE:
+    r = _send_with_fallback(req, log_fn=log_fn)
+    if r is None:
+        log_fn(f"[!] {sym} order_send returned None")
+        return None
+    if r.retcode != mt5.TRADE_RETCODE_DONE:
+        meaning = RETCODE_MEANINGS.get(r.retcode, "unknown")
+        log_fn(f"[!] {sym} ORDER FAIL retcode={r.retcode} ({meaning}) "
+               f"comment='{getattr(r, 'comment', '')}'")
         return None
     return r.order
 
