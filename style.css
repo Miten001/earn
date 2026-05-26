@@ -418,9 +418,44 @@ footer {
 }
 footer .small { font-size: 0.75rem; margin-top: 0.4rem; }
 
+/* AD SLOTS */
+.ad-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f9fafb;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  margin: 1rem auto;
+  max-width: 1100px;
+  min-height: 90px;
+  padding: 1rem;
+  overflow: hidden;
+}
+
+.ad-top, .ad-bottom { min-height: 90px; }
+.ad-mid { min-height: 250px; max-width: 970px; }
+
+.ad-placeholder {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* Hide ad slots until they actually have ads loaded */
+.ad-slot:has(.ad-placeholder:only-child) {
+  /* Show the placeholder while developing; once Media.net code is added,
+     placeholder will not be the only child and slot will be styled normally */
+}
+
+@media (max-width: 600px) {
+  .ad-slot { margin: 0.75rem 1rem; min-height: 100px; }
+}
+
 /* PRINT */
 @media print {
-  .topbar, .form-pane, .seo-section, footer { display: none; }
+  .topbar, .form-pane, .seo-section, .ad-slot, footer { display: none; }
   .layout { grid-template-columns: 1fr; padding: 0; }
   .preview-pane { position: static; }
   .invoice { box-shadow: none; padding: 1rem; border-radius: 0; }

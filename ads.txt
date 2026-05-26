@@ -1,0 +1,8 @@
+# Media.net ads.txt
+# Replace this file with the exact ads.txt content provided by Media.net
+# after approval. Without ads.txt, ads may not serve correctly.
+#
+# Format Media.net will give you:
+# media.net, YOUR_PUBLISHER_ID, DIRECT, ABCDEF1234567890
+
+placeholder.example.com, pending, DIRECT
