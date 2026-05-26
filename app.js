@@ -20,7 +20,7 @@ let state = {
   interstate: false,
   invoiceNo: "INV-001", invoiceDate: "",
   notes: "",
-  items: [{ desc: "Web Design Service", hsn: "998314", qty: 1, rate: 5000, gst: 18 }]
+  items: [{ desc: "", hsn: "", qty: 1, rate: 0, gst: 18 }]
 };
 
 // ===== Helpers =====
