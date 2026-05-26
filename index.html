@@ -1,9 +1,48 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>hello world</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Earn Online - Low Effort Income Ideas</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>Hello! hello world</h1>
+  <header class="hero">
+    <h1>Earn Online</h1>
+    <p class="tagline">Low-effort and passive income ideas — honest effort &amp; risk labels.</p>
+    <p class="disclaimer">
+      Note: No income is truly "without work". Every idea below requires some
+      setup time, money, or skill. Beware of anyone promising free money.
+    </p>
+  </header>
+
+  <main>
+    <section class="filters">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="passive">Passive</button>
+      <button class="filter-btn" data-filter="low-effort">Low Effort</button>
+      <button class="filter-btn" data-filter="skill">Needs Skill</button>
+      <button class="filter-btn" data-filter="capital">Needs Money</button>
+    </section>
+
+    <section class="ideas" id="ideas"></section>
+
+    <section class="warning">
+      <h2>Avoid These Scams</h2>
+      <ul>
+        <li>"Get rich quick" courses or coaching</li>
+        <li>Paid surveys promising hundreds per day</li>
+        <li>Crypto / forex signals groups asking for fees</li>
+        <li>MLM / pyramid recruiting schemes</li>
+        <li>Anyone asking you to pay to start working</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>Built as a starter list — research each idea further before committing time or money.</p>
+  </footer>
+
+  <script src="app.js"></script>
 </body>
 </html>
