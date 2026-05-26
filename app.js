@@ -1,109 +1,120 @@
-const IDEAS = [
-  {
-    title: "Print-on-Demand Store",
-    desc: "Upload designs to Redbubble, Teespring, or Etsy. They print and ship; you collect royalties.",
-    tags: ["passive", "skill"]
-  },
-  {
-    title: "Stock Photos / Videos",
-    desc: "Upload photos to Shutterstock, Adobe Stock, or Pexels+. Earn each time someone licenses your work.",
-    tags: ["passive", "skill"]
-  },
-  {
-    title: "YouTube Channel",
-    desc: "Build a niche channel. Ad revenue + sponsorships continue earning long after upload.",
-    tags: ["passive", "skill"]
-  },
-  {
-    title: "Write an eBook",
-    desc: "Publish on Amazon Kindle Direct Publishing. One-time effort, ongoing royalties.",
-    tags: ["passive", "skill"]
-  },
-  {
-    title: "High-Yield Savings / Bonds",
-    desc: "Park cash in HYSA or treasury bills for 4-5% interest. Truly passive but needs capital.",
-    tags: ["passive", "capital"]
-  },
-  {
-    title: "Dividend Stocks / Index Funds",
-    desc: "Long-term investing in dividend-paying stocks or index ETFs.",
-    tags: ["passive", "capital"]
-  },
-  {
-    title: "Affiliate Blog",
-    desc: "Write SEO-friendly reviews; earn commission when readers buy via your link.",
-    tags: ["skill", "low-effort"]
-  },
-  {
-    title: "Sell Digital Templates",
-    desc: "Notion templates, Excel sheets, Figma kits on Gumroad or Etsy.",
-    tags: ["passive", "skill"]
-  },
-  {
-    title: "Online Surveys",
-    desc: "Sites like Prolific or Swagbucks. Realistic earnings: $2-5/hour. Low effort, low pay.",
-    tags: ["low-effort"]
-  },
-  {
-    title: "Cashback &amp; Reward Apps",
-    desc: "Rakuten, Honey, Fetch. Free money on purchases you'd already make.",
-    tags: ["low-effort"]
-  },
-  {
-    title: "Rent Out Stuff",
-    desc: "Camera gear (Fat Llama), parking space, storage, even your car (Turo).",
-    tags: ["passive", "capital"]
-  },
-  {
-    title: "Sell Stock on Creative Fabrica / Canva",
-    desc: "Fonts, SVGs, templates. One upload, recurring royalties.",
-    tags: ["passive", "skill"]
-  },
-  {
-    title: "Build a SaaS Micro-App",
-    desc: "Solve a small problem with a $5-20/mo subscription. Big upfront skill, mostly-passive later.",
-    tags: ["skill"]
-  },
-  {
-    title: "License Music / Sound Effects",
-    desc: "Upload to AudioJungle, Epidemic Sound. Used in YouTube videos and ads.",
-    tags: ["passive", "skill"]
-  },
-  {
-    title: "Peer-to-Peer Lending",
-    desc: "Platforms like Prosper or LendingClub. Higher returns, real default risk.",
-    tags: ["passive", "capital"]
-  },
-  {
-    title: "Domain Investing",
-    desc: "Register undervalued domain names and resell. Speculative — most won't sell.",
-    tags: ["capital"]
-  }
+// ===== State =====
+let items = [
+  { desc: "Web Design Service", qty: 1, rate: 5000, gst: 18 }
 ];
 
-const ideasEl = document.getElementById("ideas");
-const filterBtns = document.querySelectorAll(".filter-btn");
+// ===== Helpers =====
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => "₹" + Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 
-function render(filter = "all") {
-  ideasEl.innerHTML = IDEAS
-    .filter(i => filter === "all" || i.tags.includes(filter))
-    .map(i => `
-      <article class="idea-card">
-        <h3>${i.title}</h3>
-        <p>${i.desc}</p>
-        <div class="tags">
-          ${i.tags.map(t => `<span class="tag ${t}">${t.replace("-", " ")}</span>`).join("")}
-        </div>
-      </article>
-    `).join("");
+// ===== Render Items in Form =====
+function renderItems() {
+  const wrap = $("items");
+  wrap.innerHTML = "";
+  items.forEach((it, i) => {
+    const row = document.createElement("div");
+    row.className = "item-row";
+    row.innerHTML = `
+      <input placeholder="Description" value="${it.desc}" data-i="${i}" data-k="desc" />
+      <input type="number" min="0" value="${it.qty}" data-i="${i}" data-k="qty" />
+      <input type="number" min="0" value="${it.rate}" data-i="${i}" data-k="rate" />
+      <input type="number" min="0" value="${it.gst}" data-i="${i}" data-k="gst" />
+      <button class="remove-btn" data-rm="${i}" title="Remove">×</button>
+    `;
+    wrap.appendChild(row);
+  });
+
+  wrap.querySelectorAll("input").forEach(inp => {
+    inp.addEventListener("input", (e) => {
+      const i = +e.target.dataset.i;
+      const k = e.target.dataset.k;
+      items[i][k] = k === "desc" ? e.target.value : +e.target.value;
+      updatePreview();
+    });
+  });
+
+  wrap.querySelectorAll(".remove-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      items.splice(+btn.dataset.rm, 1);
+      if (items.length === 0) items.push({ desc: "", qty: 1, rate: 0, gst: 18 });
+      renderItems();
+      updatePreview();
+    });
+  });
 }
 
-filterBtns.forEach(btn => {
-  btn.addEventListener("click", () => {
-    filterBtns.forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    render(btn.dataset.filter);
-  });
+// ===== Update Preview =====
+function updatePreview() {
+  $("pSellerName").textContent      = $("sellerName").value || "Your Business Name";
+  $("pSellerAddress").textContent   = $("sellerAddress").value || "Your address";
+  $("pSellerGstin").textContent     = $("sellerGstin").value || "—";
+  const phone = $("sellerPhone").value;
+  const email = $("sellerEmail").value;
+  $("pSellerContact").textContent   = [phone, email].filter(Boolean).join(" · ");
+
+  $("pBuyerName").textContent       = $("buyerName").value || "Customer Name";
+  $("pBuyerAddress").textContent    = $("buyerAddress").value || "";
+  const bg = $("buyerGstin").value;
+  $("pBuyerGstinLine").textContent  = bg ? "GSTIN: " + bg : "";
+
+  $("pInvoiceNo").textContent       = $("invoiceNo").value || "INV-001";
+  const d = $("invoiceDate").value;
+  $("pInvoiceDate").textContent     = d ? "Date: " + new Date(d).toLocaleDateString("en-IN") : "";
+
+  $("pNotes").textContent           = $("notes").value || "";
+
+  // Items + totals
+  let subtotal = 0, totalGst = 0;
+  const rows = items.map((it, i) => {
+    const amt = it.qty * it.rate;
+    const gstAmt = amt * (it.gst / 100);
+    subtotal += amt;
+    totalGst += gstAmt;
+    return `<tr>
+      <td>${i + 1}</td>
+      <td>${it.desc || "-"}</td>
+      <td>${it.qty}</td>
+      <td>${fmt(it.rate)}</td>
+      <td>${it.gst}%</td>
+      <td>${fmt(amt + gstAmt)}</td>
+    </tr>`;
+  }).join("");
+  $("pItems").innerHTML = rows;
+
+  $("pSubtotal").textContent = fmt(subtotal);
+  $("pCgst").textContent     = fmt(totalGst / 2);
+  $("pSgst").textContent     = fmt(totalGst / 2);
+  $("pTotal").textContent    = fmt(subtotal + totalGst);
+}
+
+// ===== Hook form inputs =====
+["sellerName","sellerAddress","sellerGstin","sellerPhone","sellerEmail",
+ "buyerName","buyerAddress","buyerGstin","invoiceNo","invoiceDate","notes"
+].forEach(id => $(id).addEventListener("input", updatePreview));
+
+$("addItem").addEventListener("click", () => {
+  items.push({ desc: "", qty: 1, rate: 0, gst: 18 });
+  renderItems();
+  updatePreview();
 });
 
-render();
+// ===== PDF Download =====
+$("downloadPdf").addEventListener("click", async () => {
+  const el = $("invoicePreview");
+  const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff" });
+  const img = canvas.toDataURL("image/png");
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF("p", "mm", "a4");
+  const pdfW = pdf.internal.pageSize.getWidth();
+  const pdfH = (canvas.height * pdfW) / canvas.width;
+  pdf.addImage(img, "PNG", 0, 0, pdfW, pdfH);
+  pdf.save(`${$("invoiceNo").value || "invoice"}.pdf`);
+});
+
+// ===== Print =====
+$("printInvoice").addEventListener("click", () => window.print());
+
+// ===== Init =====
+$("invoiceDate").value = new Date().toISOString().slice(0, 10);
+renderItems();
+updatePreview();

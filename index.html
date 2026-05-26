@@ -3,44 +3,112 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Earn Online - Low Effort Income Ideas</title>
+  <title>Free GST Invoice Generator India - Download PDF Instantly</title>
+  <meta name="description" content="Create professional GST invoices for free. Download as PDF instantly. Perfect for freelancers, small businesses & shopkeepers in India. No signup required." />
+  <meta name="keywords" content="gst invoice generator, free invoice maker india, gst bill format, invoice pdf download, freelancer invoice india" />
+  <meta property="og:title" content="Free GST Invoice Generator - India" />
+  <meta property="og:description" content="Create and download GST invoices in seconds. 100% free." />
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
-  <header class="hero">
-    <h1>Earn Online</h1>
-    <p class="tagline">Low-effort and passive income ideas — honest effort &amp; risk labels.</p>
-    <p class="disclaimer">
-      Note: No income is truly "without work". Every idea below requires some
-      setup time, money, or skill. Beware of anyone promising free money.
-    </p>
+  <header class="topbar">
+    <h1>GST Invoice Generator <span class="badge">FREE</span></h1>
+    <p>Professional GST invoices in 60 seconds. No signup. No watermark.</p>
   </header>
 
-  <main>
-    <section class="filters">
-      <button class="filter-btn active" data-filter="all">All</button>
-      <button class="filter-btn" data-filter="passive">Passive</button>
-      <button class="filter-btn" data-filter="low-effort">Low Effort</button>
-      <button class="filter-btn" data-filter="skill">Needs Skill</button>
-      <button class="filter-btn" data-filter="capital">Needs Money</button>
+  <main class="layout">
+    <!-- LEFT: FORM -->
+    <section class="form-pane">
+      <h2>Your Details</h2>
+      <div class="grid">
+        <label>Business Name <input id="sellerName" placeholder="ABC Traders" /></label>
+        <label>GSTIN <input id="sellerGstin" placeholder="22AAAAA0000A1Z5" /></label>
+        <label class="full">Address <textarea id="sellerAddress" rows="2" placeholder="Shop 12, MG Road, Mumbai 400001"></textarea></label>
+        <label>Phone <input id="sellerPhone" placeholder="+91 98765 43210" /></label>
+        <label>Email <input id="sellerEmail" placeholder="hello@abc.com" /></label>
+      </div>
+
+      <h2>Customer Details</h2>
+      <div class="grid">
+        <label>Customer Name <input id="buyerName" placeholder="XYZ Pvt Ltd" /></label>
+        <label>Customer GSTIN <input id="buyerGstin" placeholder="Optional" /></label>
+        <label class="full">Address <textarea id="buyerAddress" rows="2"></textarea></label>
+      </div>
+
+      <h2>Invoice Info</h2>
+      <div class="grid">
+        <label>Invoice # <input id="invoiceNo" value="INV-001" /></label>
+        <label>Date <input id="invoiceDate" type="date" /></label>
+      </div>
+
+      <h2>Items</h2>
+      <div id="items"></div>
+      <button class="btn-secondary" id="addItem">+ Add Item</button>
+
+      <h2>Notes</h2>
+      <textarea id="notes" rows="2" placeholder="Thank you for your business!"></textarea>
+
+      <div class="actions">
+        <button class="btn-primary" id="downloadPdf">Download PDF</button>
+        <button class="btn-secondary" id="printInvoice">Print</button>
+      </div>
+
+      <!-- AFFILIATE / SUPPORT SLOT -->
+      <aside class="support-card">
+        <p><strong>Need full accounting?</strong> Try <a href="#" id="affiliateLink" target="_blank" rel="noopener">Zoho Books / Vyapar</a> — proper inventory, GST returns, reports.</p>
+        <p class="tip">Like this tool? <a href="https://www.buymeacoffee.com/" target="_blank" rel="noopener">Buy me a chai ☕</a></p>
+      </aside>
     </section>
 
-    <section class="ideas" id="ideas"></section>
+    <!-- RIGHT: PREVIEW -->
+    <section class="preview-pane">
+      <div id="invoicePreview" class="invoice">
+        <div class="inv-header">
+          <div>
+            <h2 id="pSellerName">Your Business Name</h2>
+            <p id="pSellerAddress">Your address</p>
+            <p>GSTIN: <span id="pSellerGstin">—</span></p>
+            <p id="pSellerContact"></p>
+          </div>
+          <div class="inv-meta">
+            <h3>TAX INVOICE</h3>
+            <p>#<span id="pInvoiceNo">INV-001</span></p>
+            <p id="pInvoiceDate"></p>
+          </div>
+        </div>
 
-    <section class="warning">
-      <h2>Avoid These Scams</h2>
-      <ul>
-        <li>"Get rich quick" courses or coaching</li>
-        <li>Paid surveys promising hundreds per day</li>
-        <li>Crypto / forex signals groups asking for fees</li>
-        <li>MLM / pyramid recruiting schemes</li>
-        <li>Anyone asking you to pay to start working</li>
-      </ul>
+        <div class="inv-bill-to">
+          <strong>Bill To:</strong>
+          <p id="pBuyerName">Customer Name</p>
+          <p id="pBuyerAddress"></p>
+          <p id="pBuyerGstinLine"></p>
+        </div>
+
+        <table class="inv-table">
+          <thead>
+            <tr><th>#</th><th>Description</th><th>Qty</th><th>Rate</th><th>GST %</th><th>Amount</th></tr>
+          </thead>
+          <tbody id="pItems"></tbody>
+        </table>
+
+        <div class="inv-totals">
+          <div><span>Subtotal:</span><span id="pSubtotal">₹0</span></div>
+          <div><span>CGST:</span><span id="pCgst">₹0</span></div>
+          <div><span>SGST:</span><span id="pSgst">₹0</span></div>
+          <div class="total"><span>Total:</span><span id="pTotal">₹0</span></div>
+        </div>
+
+        <div class="inv-footer">
+          <p id="pNotes"></p>
+        </div>
+      </div>
     </section>
   </main>
 
   <footer>
-    <p>Built as a starter list — research each idea further before committing time or money.</p>
+    <p>Made for Indian freelancers &amp; small businesses · 100% free · Data never leaves your browser</p>
   </footer>
 
   <script src="app.js"></script>
