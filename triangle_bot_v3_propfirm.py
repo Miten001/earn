@@ -54,7 +54,7 @@ except Exception as _e:
 
 try:
     import time, csv, os, sys, threading
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     from concurrent.futures import ThreadPoolExecutor, as_completed
 except Exception as _e:
     _critical(f"Standard library error: {_e}")
@@ -333,7 +333,7 @@ def _is_weekend_close_time():
     Friday 21:00 UTC ke baad = close time.
     Saturday / Sunday = no trading.
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     # Saturday (5) or Sunday (6) — no trading
     if now.weekday() in (5, 6):
         return True
@@ -348,7 +348,7 @@ def _is_news_blocked(symbol):
     NFP: first Friday of month, 13:30 UTC
     Other events: fixed schedule from HIGH_IMPACT_NEWS list.
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     # NFP check: first Friday of month, 13:30 UTC
     if now.weekday() == 4 and now.day <= 7:
