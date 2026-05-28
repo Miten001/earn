@@ -13,7 +13,7 @@
      ✓ No Saturday/Sunday hold
      ✓ Bad pairs removed (exotic, high spread, prop-banned)
      ✓ Unlimited positions (jitne signals utne trades)
-     ✓ Max 1% risk per trade (lot sizing)
+     ✓ Max 0.5% risk per trade (lot sizing + $50 cap)
 
    LOGIC: UNCHANGED — same triangle detection, breakout, trailing SL
 """
@@ -169,11 +169,11 @@ TIMEFRAMES = {
 }
 
 # ─────────────────────────────────────────────────────────
-#  ★  HIGH WIN RATE FILTER — SELL + BUY BOTH ENABLED
+#  ★  HIGH WIN RATE FILTER — BUY ONLY (SELL DISABLED)
 #
-#  BUY:  ASCENDING breakout above R  → classic
-#  SELL: DESCENDING breakout below S → classic
-#  SYMMETRICAL still blocked (unreliable)
+#  BUY:  ASCENDING/DESCENDING breakout above R
+#  SELL: DISABLED — prop firm safe
+#  SYMMETRICAL: BLOCKED (unreliable)
 # ─────────────────────────────────────────────────────────
 HIGH_WINRATE_COMBOS = {
     ("M15", "ASCENDING",  "BUY"),    # breakout above resistance
