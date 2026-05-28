@@ -7,7 +7,7 @@
    PROP FIRM RULES ENFORCED:
      ✓ Max Drawdown = $149 (hard limit — sab positions close)
      ✓ Daily Loss Limit = $149 (din ka max loss)
-     ✓ SELL + BUY dono enabled (M15 ASC/DESC)
+     ✓ SELL disabled — only BUY trades (safer for prop firm)
      ✓ News time block (high-impact 30min before/after)
      ✓ Weekend close (Friday 21:00 UTC pe sab positions close)
      ✓ No Saturday/Sunday hold
@@ -178,17 +178,21 @@ TIMEFRAMES = {
 HIGH_WINRATE_COMBOS = {
     ("M15", "ASCENDING",  "BUY"),    # breakout above resistance
     ("M15", "DESCENDING", "BUY"),    # breakout above resistance (desc)
-    ("M15", "ASCENDING",  "SELL"),   # breakout below support
-    ("M15", "DESCENDING", "SELL"),   # breakout below support (desc)
+    # SELL disabled — prop firm mein risk zyada hai
+    # ("M15", "ASCENDING",  "SELL"),
+    # ("M15", "DESCENDING", "SELL"),
 }
 
 def is_allowed_trade(tf_name, pattern, direction):
     """
-    SELL + BUY dono allowed (ASC/DESC).
-    SYMMETRICAL still blocked.
+    Sirf BUY allowed (ASC/DESC).
+    SELL disabled — prop firm safe.
+    SYMMETRICAL blocked.
     """
     if (tf_name, pattern, direction) in HIGH_WINRATE_COMBOS:
         return True, f"ALLOWED [{tf_name} {pattern} {direction}]"
+    if direction == "SELL":
+        return False, f"BLOCKED — SELL disabled (prop firm safe)"
     if pattern == "SYMMETRICAL":
         return False, f"BLOCKED — SYMMETRICAL unreliable"
     return False, f"BLOCKED — not in whitelist ({tf_name} {pattern} {direction})"
@@ -430,7 +434,7 @@ def print_banner():
     w = 62
     lines = [
         ("anony_v3  PROP FIRM SAFE", "gold"),
-        ("Forex · Gold  |  BUY + SELL", "cyan"),
+        ("Forex · Gold  |  BUY ONLY (SELL off)", "cyan"),
         ("Auto-Detect MT5  |  Auto Trade  |  Trail SL", "gray"),
         ("", ""),
         ("★  PROP FIRM PROTECTION ACTIVE  ★", "green"),
@@ -1197,7 +1201,7 @@ class DashboardGUI:
         sw, sb = self._section(main, "PROP FIRM STRATEGY", color=self.BLUE)
         sw.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
         rows = [
-            ("Pattern", "Triangle breakout (ASC/DESC) BUY+SELL"),
+            ("Pattern", "Triangle breakout (ASC/DESC) BUY ONLY"),
             ("Entry",   f"Closed candle outside R/S, body>={int(MIN_BODY_RATIO*100)}%"),
             ("SL",      "Opposite triangle line"),
             ("TP",      f"Entry ± max(H, {MIN_RR}×SL)  RR>={MIN_RR}"),
