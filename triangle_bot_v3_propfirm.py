@@ -12,7 +12,7 @@
      ✓ Weekend close (Friday 21:00 UTC pe sab positions close)
      ✓ No Saturday/Sunday hold
      ✓ Bad pairs removed (exotic, high spread, prop-banned)
-     ✓ Max 3 positions at a time (risk control)
+     ✓ Unlimited positions (jitne signals utne trades)
      ✓ Max 1% risk per trade (lot sizing)
 
    LOGIC: UNCHANGED — same triangle detection, breakout, trailing SL
@@ -133,7 +133,7 @@ SCAN_INTERVAL     = 5        # seconds between scans
 # ── PROP FIRM HARD LIMITS ──────────────────────────────────
 MAX_DRAWDOWN_USD     = 149.0    # ABSOLUTE MAX — isse zyada loss = sab band
 DAILY_MAX_LOSS_USD   = 149.0    # din ka max loss (same as drawdown for safety)
-MAX_OPEN_POSITIONS   = 3        # max 3 positions at a time (risk control)
+MAX_OPEN_POSITIONS   = 999      # unlimited — jitne signals utne trades
 
 # ── WEEKEND / NEWS ─────────────────────────────────────────
 FRIDAY_CLOSE_HOUR_UTC = 21      # Friday 21:00 UTC = sab positions close
@@ -435,7 +435,7 @@ def print_banner():
         ("", ""),
         ("★  PROP FIRM PROTECTION ACTIVE  ★", "green"),
         (f"Max Drawdown: ${MAX_DRAWDOWN_USD}  |  Daily Limit: ${DAILY_MAX_LOSS_USD}", "yellow"),
-        (f"Risk/trade: {RISK_PERCENT}%  |  Max {MAX_OPEN_POSITIONS} positions", "yellow"),
+        (f"Risk/trade: {RISK_PERCENT}%  |  Unlimited positions", "yellow"),
         ("News block  |  Weekend close  |  No crypto", "yellow"),
         ("", ""),
         ("Made by  @codex_here", "magenta"),
@@ -1049,7 +1049,7 @@ def scanner_worker(risk, min_rr, trail, interval):
               f"balance=${acc.balance:.2f} server={acc.server}")
     _push_log(f"[PROP FIRM] Max DD=${MAX_DRAWDOWN_USD} | "
               f"Daily=${DAILY_MAX_LOSS_USD} | Risk={RISK_PERCENT}%/trade | "
-              f"Max pos={MAX_OPEN_POSITIONS}")
+              f"Positions=UNLIMITED")
 
     term = mt5.terminal_info()
     if term and not term.trade_allowed:
@@ -1204,7 +1204,7 @@ class DashboardGUI:
             ("Risk",    f"{RISK_PERCENT}% balance / trade (0.5%)"),
             ("Max DD",  f"${MAX_DRAWDOWN_USD} hard limit"),
             ("DailyLim",f"${DAILY_MAX_LOSS_USD} / day"),
-            ("Max pos", f"{MAX_OPEN_POSITIONS} positions max"),
+            ("Max pos", f"Unlimited (DD limit protects)"),
             ("Weekend", f"Close Friday {FRIDAY_CLOSE_HOUR_UTC}:00 UTC"),
             ("News",    f"Block ±{NEWS_BLOCK_MINUTES}min high-impact"),
             ("Symbols", f"{len(SYMBOLS)} pairs (prop-safe only)"),
