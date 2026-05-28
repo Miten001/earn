@@ -1030,6 +1030,111 @@ def scan_all_symbols(scan_num, min_rr, risk_percent, trail_rr):
 
 
 # ─────────────────────────────────────────────────────────
+#  STARTUP TEST TRADE
+#  Script start pe EURUSD min-lot BUY open karta hai.
+#  10 sec baad close karta hai. Confirm: script + MT5 dono OK.
+# ─────────────────────────────────────────────────────────
+def _run_startup_test():
+    TEST_MAGIC = MAGIC + 1
+    TEST_SYM   = "EURUSD"
+    WAIT_SEC   = 10
+
+    _push_log("[TEST] Startup test trade shuru...")
+
+    if not mt5.symbol_select(TEST_SYM, True):
+        _push_log(f"[TEST] {TEST_SYM} select nahi hua — skip")
+        return
+
+    info = mt5.symbol_info(TEST_SYM)
+    tick = mt5.symbol_info_tick(TEST_SYM)
+    if info is None or tick is None:
+        _push_log("[TEST] info/tick nahi mila — skip")
+        return
+
+    lot   = info.volume_min
+    price = tick.ask
+    # SL/TP wide enough to not hit during 10 sec
+    stops_lv = int(getattr(info, "trade_stops_level", 5) or 5)
+    spread   = int(getattr(info, "spread", 10) or 10)
+    min_dist = max(stops_lv, spread + 20, 20) * info.point
+    sl = _round_price(info, price - min_dist * 3)
+    tp = _round_price(info, price + min_dist * 3)
+
+    # Try all filling modes
+    result = None
+    for fmode in FILLING_MODES:
+        req = {
+            "action"      : mt5.TRADE_ACTION_DEAL,
+            "symbol"      : TEST_SYM,
+            "volume"      : float(lot),
+            "type"        : mt5.ORDER_TYPE_BUY,
+            "price"       : _round_price(info, price),
+            "sl"          : sl,
+            "tp"          : tp,
+            "deviation"   : 30,
+            "magic"       : TEST_MAGIC,
+            "comment"     : "TEST_startup",
+            "type_time"   : mt5.ORDER_TIME_GTC,
+            "type_filling": fmode,
+        }
+        r = mt5.order_send(req)
+        if r and r.retcode == mt5.TRADE_RETCODE_DONE:
+            result = r
+            break
+
+    if not result or result.retcode != mt5.TRADE_RETCODE_DONE:
+        rc = getattr(result, 'retcode', 'None') if result else 'None'
+        _push_log(f"[TEST] FAIL — order nahi laga (rc={rc}). "
+                  f"AlgoTrading ON hai? Err={mt5.last_error()}")
+        return
+
+    ticket = result.order
+    _push_log(f"[TEST] ✅ BUY #{ticket} lot={lot} — {WAIT_SEC}s mein close hoga...")
+
+    # Wait
+    for _ in range(WAIT_SEC):
+        if _STOP_EVENT.is_set():
+            break
+        time.sleep(1)
+
+    # Close the test position
+    positions = mt5.positions_get(ticket=ticket) or []
+    if not positions:
+        all_pos = mt5.positions_get(symbol=TEST_SYM) or []
+        positions = [p for p in all_pos if p.magic == TEST_MAGIC]
+
+    if not positions:
+        _push_log(f"[TEST] #{ticket} — already closed (TP/SL hit?) — OK")
+        return
+
+    for pos in positions:
+        ctick = mt5.symbol_info_tick(pos.symbol)
+        cinf  = mt5.symbol_info(pos.symbol)
+        if ctick is None or cinf is None:
+            continue
+        for fmode in FILLING_MODES:
+            cr = mt5.order_send({
+                "action"      : mt5.TRADE_ACTION_DEAL,
+                "symbol"      : pos.symbol,
+                "volume"      : pos.volume,
+                "type"        : mt5.ORDER_TYPE_SELL,
+                "position"    : pos.ticket,
+                "price"       : _round_price(cinf, ctick.bid),
+                "deviation"   : 30,
+                "magic"       : TEST_MAGIC,
+                "comment"     : "TEST_close",
+                "type_time"   : mt5.ORDER_TIME_GTC,
+                "type_filling": fmode,
+            })
+            if cr and cr.retcode == mt5.TRADE_RETCODE_DONE:
+                _push_log(f"[TEST] ✅ #{pos.ticket} close hua — Script WORKING! 🎉")
+                break
+        else:
+            _push_log(f"[TEST] Close fail #{pos.ticket} — "
+                      f"manually close karo MT5 mein (TEST position)")
+
+
+# ─────────────────────────────────────────────────────────
 #  SCANNER THREAD
 # ─────────────────────────────────────────────────────────
 def scanner_worker(risk, min_rr, trail, interval):
@@ -1058,6 +1163,11 @@ def scanner_worker(risk, min_rr, trail, interval):
     term = mt5.terminal_info()
     if term and not term.trade_allowed:
         _push_log("[WARN] AlgoTrading DISABLED hai MT5 mein! Enable karo.")
+
+    # ── STARTUP TEST TRADE ─────────────────────────────────
+    # Script sahi chal rahi hai confirm karne ke liye
+    # EURUSD pe min lot BUY → 10 sec → close
+    _run_startup_test()
 
     scan_num = 0
     try:
