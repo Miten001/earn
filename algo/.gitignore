@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+*.pyo
+trades.csv
+.venv/
