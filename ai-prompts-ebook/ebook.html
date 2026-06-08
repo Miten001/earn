@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Prompts That Print Money</title>
+<style>
+  :root{
+    --ink:#0f172a;
+    --muted:#475569;
+    --brand:#10b981;
+    --brand2:#0ea5e9;
+    --accent:#8b5cf6;
+    --bg-soft:#f1f5f9;
+    --code-bg:#0f172a;
+    --code-ink:#e2e8f0;
+    --good:#059669;
+    --warn:#d97706;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);
+    line-height:1.6;
+    font-size:15px;
+  }
+  .page{
+    page-break-after:always;
+    padding:60px 56px;
+    min-height:100vh;
+    position:relative;
+  }
+  .page:last-child{page-break-after:auto;}
+
+  /* COVER */
+  .cover{
+    background:radial-gradient(circle at 20% 20%,#0ea5e9 0%,#8b5cf6 45%,#0f172a 100%);
+    color:#fff;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+    padding:80px 56px;
+  }
+  .cover .kicker{
+    text-transform:uppercase;
+    letter-spacing:4px;
+    font-size:13px;
+    font-weight:600;
+    color:#5eead4;
+    border:1px solid rgba(94,234,212,.4);
+    padding:8px 18px;
+    border-radius:30px;
+    margin-bottom:32px;
+  }
+  .cover h1{
+    font-size:52px;
+    line-height:1.05;
+    font-weight:800;
+    margin-bottom:22px;
+    letter-spacing:-1.5px;
+  }
+  .cover h1 .hl{
+    background:linear-gradient(90deg,#34d399,#22d3ee);
+    -webkit-background-clip:text;
+    background-clip:text;
+    -webkit-text-fill-color:transparent;
+  }
+  .cover .sub{
+    font-size:19px;
+    font-weight:400;
+    opacity:.9;
+    max-width:540px;
+    margin-bottom:44px;
+  }
+  .cover .badges{
+    display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:56px;
+  }
+  .cover .badge{
+    background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,255,255,.2);
+    padding:10px 16px;border-radius:12px;font-size:13px;font-weight:600;
+  }
+  .cover .author{
+    position:absolute;bottom:56px;font-size:16px;letter-spacing:1px;opacity:.9;
+  }
+  .cover .author strong{font-weight:700;color:#5eead4;}
+
+  h2.chapter{font-size:30px;font-weight:800;letter-spacing:-.5px;margin-bottom:6px;}
+  .chapter-num{color:var(--brand);font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;}
+  .rule{height:4px;width:56px;background:linear-gradient(90deg,var(--brand),var(--brand2));border-radius:4px;margin:12px 0 24px;}
+  h3{font-size:19px;font-weight:700;margin:22px 0 8px;}
+  p{margin-bottom:12px;color:var(--muted);}
+  p strong{color:var(--ink);}
+  ul,ol{margin:0 0 14px 22px;color:var(--muted);}
+  li{margin-bottom:7px;}
+  .lead{font-size:17px;color:var(--ink);font-weight:500;margin-bottom:18px;}
+
+  .prompt-card{
+    border:1px solid #e2e8f0;
+    border-radius:14px;
+    overflow:hidden;
+    margin:18px 0;
+    box-shadow:0 1px 3px rgba(15,23,42,.06);
+  }
+  .prompt-head{
+    background:var(--bg-soft);
+    padding:12px 18px;
+    display:flex;align-items:center;gap:12px;
+    border-bottom:1px solid #e2e8f0;
+  }
+  .prompt-head .num{
+    flex:none;width:30px;height:30px;border-radius:8px;
+    background:linear-gradient(135deg,var(--brand),var(--brand2));
+    color:#fff;font-weight:700;font-size:14px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .prompt-head .title{font-weight:700;font-size:15px;color:var(--ink);}
+  .prompt-head .tag{margin-left:auto;font-size:11px;font-weight:600;color:var(--accent);background:#f3e8ff;padding:4px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px;}
+  .prompt-body{padding:14px 18px;}
+  .prompt-body .why{font-size:13px;color:var(--muted);margin-bottom:10px;}
+  .code{
+    background:var(--code-bg);
+    color:var(--code-ink);
+    border-radius:10px;
+    padding:14px 16px;
+    font-family:"SF Mono",Consolas,Monaco,monospace;
+    font-size:12.5px;
+    line-height:1.55;
+    white-space:pre-wrap;
+    word-break:break-word;
+  }
+  .code .ph{color:#fbbf24;}
+
+  .callout{border-radius:12px;padding:16px 20px;margin:20px 0;border-left:5px solid var(--brand);background:var(--bg-soft);}
+  .callout.tip{border-color:var(--good);background:#ecfdf5;}
+  .callout.warn{border-color:var(--warn);background:#fffbeb;}
+  .callout .label{font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;display:block;}
+  .callout.tip .label{color:var(--good);}
+  .callout.warn .label{color:var(--warn);}
+  .callout p{margin-bottom:0;color:var(--ink);}
+
+  .toc-item{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px dashed #cbd5e1;font-size:16px;}
+  .toc-item .t{color:var(--ink);font-weight:600;}
+  .toc-item .t span{color:var(--brand);margin-right:10px;}
+  .toc-item .pg{color:var(--muted);}
+
+  .pagefoot{position:absolute;bottom:26px;left:56px;right:56px;display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;border-top:1px solid #eee;padding-top:8px;}
+  .center{text-align:center;}
+  .quote{font-size:21px;font-style:italic;color:var(--ink);text-align:center;margin:28px 0;line-height:1.4;font-weight:600;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0;}
+  .mini{background:var(--bg-soft);border-radius:10px;padding:14px 16px;}
+  .mini h4{font-size:14px;color:var(--brand2);margin-bottom:5px;}
+  .mini p{font-size:13px;margin-bottom:0;}
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<section class="page cover">
+  <div class="kicker">2026 Edition · Copy · Paste · Profit</div>
+  <h1>AI Prompts<br>That <span class="hl">Print Money</span></h1>
+  <div class="sub">50 battle-tested ChatGPT prompts for freelancers, creators &amp; small businesses — copy, paste, and get paid faster.</div>
+  <div class="badges">
+    <div class="badge">50 Ready Prompts</div>
+    <div class="badge">8 Money Categories</div>
+    <div class="badge">No Skills Needed</div>
+  </div>
+  <div class="author">A practical guide by <strong>@codex_here</strong></div>
+</section>
+
+<!-- ABOUT -->
+<section class="page">
+  <div class="chapter-num">Front Matter</div>
+  <h2 class="chapter">Read This First</h2>
+  <div class="rule"></div>
+  <p class="lead">AI won't replace you — but someone using AI well might. This pack turns ChatGPT (or any AI chatbot) into your personal team of writers, marketers, and assistants.</p>
+
+  <h3>How to use this pack</h3>
+  <ol>
+    <li>Open ChatGPT, Claude, Gemini, or any AI chat tool (the free versions work).</li>
+    <li>Find a prompt for your task and <strong>copy it</strong>.</li>
+    <li>Replace the <span style="color:#d97706;font-weight:700;">[YELLOW BRACKETS]</span> with your details.</li>
+    <li>Paste, send, then refine with follow-ups like "make it shorter" or "more casual".</li>
+  </ol>
+
+  <div class="callout tip">
+    <span class="label">The Golden Rule of Prompting</span>
+    <p>Give the AI a <strong>role</strong>, <strong>context</strong>, and a clear <strong>output format</strong>. Every prompt here already does this for you — that's why they work.</p>
+  </div>
+
+  <h3>Who this is for</h3>
+  <ul>
+    <li>Freelancers who want to deliver faster and win more clients</li>
+    <li>Creators who need endless content ideas</li>
+    <li>Small business owners doing their own marketing</li>
+    <li>Anyone who wants to save 10+ hours a week</li>
+  </ul>
+
+  <p style="margin-top:24px;font-size:13px;color:#94a3b8;">© 2026 · For the buyer's personal use. Please don't redistribute or resell.</p>
+  <div class="pagefoot"><span>AI Prompts That Print Money</span><span>2</span></div>
+</section>
+
+<!-- TOC -->
+<section class="page">
+  <div class="chapter-num">Contents</div>
+  <h2 class="chapter">What's Inside</h2>
+  <div class="rule"></div>
+  <div class="toc-item"><div class="t"><span>01</span>Land Clients &amp; Close Deals</div><div class="pg">4</div></div>
+  <div class="toc-item"><div class="t"><span>02</span>Content That Goes Viral</div><div class="pg">5</div></div>
+  <div class="toc-item"><div class="t"><span>03</span>Email &amp; Outreach</div><div class="pg">6</div></div>
+  <div class="toc-item"><div class="t"><span>04</span>Marketing &amp; Ads</div><div class="pg">7</div></div>
+  <div class="toc-item"><div class="t"><span>05</span>Productivity &amp; Automation</div><div class="pg">8</div></div>
+  <div class="toc-item"><div class="t"><span>06</span>Digital Products &amp; Selling</div><div class="pg">9</div></div>
+  <div class="toc-item"><div class="t"><span>07</span>Learning &amp; Research Fast</div><div class="pg">10</div></div>
+  <div class="toc-item"><div class="t"><span>08</span>Bonus: Prompt Power-Ups</div><div class="pg">11</div></div>
+  <div class="pagefoot"><span>AI Prompts That Print Money</span><span>3</span></div>
+</section>
+
+<!-- CH1 -->
+<section class="page">
+  <div class="chapter-num">Category 01</div>
+  <h2 class="chapter">Land Clients &amp; Close Deals</h2>
+  <div class="rule"></div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">1</div><div class="title">The Irresistible Cold Pitch</div><div class="tag">Sales</div></div>
+    <div class="prompt-body">
+      <div class="why">Turns a blank page into a personalized pitch that gets replies.</div>
+      <div class="code">You are an expert B2B copywriter. Write a short, friendly cold outreach message to <span class="ph">[TYPE OF BUSINESS]</span>. I offer <span class="ph">[YOUR SERVICE]</span>. Mention one specific problem they likely have, offer one small free value upfront, and end with a low-pressure question. Keep it under 90 words, no jargon.</div>
+    </div>
+  </div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">2</div><div class="title">Proposal in 60 Seconds</div><div class="tag">Sales</div></div>
+    <div class="prompt-body">
+      <div class="why">Generates a clean, professional project proposal instantly.</div>
+      <div class="code">Act as a freelance consultant. Create a project proposal for <span class="ph">[CLIENT/PROJECT]</span>. Include: overview, scope of work, timeline, deliverables, pricing options (3 tiers), and next steps. Tone: confident but approachable.</div>
+    </div>
+  </div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">3</div><div class="title">Objection Crusher</div><div class="tag">Sales</div></div>
+    <div class="prompt-body">
+      <div class="why">Prepares you for the "it's too expensive" moment.</div>
+      <div class="code">A potential client said: "<span class="ph">[THEIR OBJECTION]</span>". Give me 3 calm, non-pushy responses that reframe the value and move the conversation forward. Include one question I can ask back.</div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <span class="label">Pro Tip</span>
+    <p>Always add "ask me 3 questions before answering" to any prompt when you want the AI to tailor the output to your exact situation.</p>
+  </div>
+
+  <div class="pagefoot"><span>AI Prompts That Print Money</span><span>4</span></div>
+</section>
+
+<!-- CH2 -->
+<section class="page">
+  <div class="chapter-num">Category 02</div>
+  <h2 class="chapter">Content That Goes Viral</h2>
+  <div class="rule"></div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">4</div><div class="title">30 Days of Content Ideas</div><div class="tag">Content</div></div>
+    <div class="prompt-body">
+      <div class="why">Never stare at a blank content calendar again.</div>
+      <div class="code">You are a viral social media strategist. Give me 30 content ideas for <span class="ph">[NICHE]</span> on <span class="ph">[PLATFORM]</span>. Mix formats: hooks, tips, myths, stories, and "how-to". For each, write a scroll-stopping first line.</div>
+    </div>
+  </div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">5</div><div class="title">The Hook Machine</div><div class="tag">Content</div></div>
+    <div class="prompt-body">
+      <div class="why">The first line decides if people keep watching/reading.</div>
+      <div class="code">Write 10 different scroll-stopping hooks for a post about <span class="ph">[TOPIC]</span>. Use curiosity, bold claims, and relatable pain points. Keep each under 12 words.</div>
+    </div>
+  </div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">6</div><div class="title">Long-Form to Short-Form</div><div class="tag">Content</div></div>
+    <div class="prompt-body">
+      <div class="why">Turn one piece of content into a week of posts.</div>
+      <div class="code">Here is my blog post / video script: <span class="ph">[PASTE TEXT]</span>. Break it into 7 short social posts, each with a hook, 2-3 value lines, and a call to action. Keep my voice.</div>
+    </div>
+  </div>
+
+  <div class="pagefoot"><span>AI Prompts That Print Money</span><span>5</span></div>
+</section>
+
+<!-- CH3 -->
+<section class="page">
+  <div class="chapter-num">Category 03</div>
+  <h2 class="chapter">Email &amp; Outreach</h2>
+  <div class="rule"></div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">7</div><div class="title">The Welcome Sequence</div><div class="tag">Email</div></div>
+    <div class="prompt-body">
+      <div class="why">Build trust with new subscribers on autopilot.</div>
+      <div class="code">Write a 3-email welcome sequence for new subscribers to <span class="ph">[YOUR BRAND/NEWSLETTER]</span>. Email 1: warm welcome + quick win. Email 2: my story + why I do this. Email 3: soft pitch for <span class="ph">[OFFER]</span>. Friendly, no fluff.</div>
+    </div>
+  </div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">8</div><div class="title">Re-Engage Cold Leads</div><div class="tag">Email</div></div>
+    <div class="prompt-body">
+      <div class="why">Wake up subscribers who stopped opening.</div>
+      <div class="code">Write a short "we miss you" email to re-engage subscribers who haven't opened in 60 days. Include a curiosity subject line and one clear reason to come back. Under 120 words.</div>
+    </div>
+  </div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">9</div><div class="title">Subject Line A/B Tester</div><div class="tag">Email</div></div>
+    <div class="prompt-body">
+      <div class="why">Better subject lines = more opens = more sales.</div>
+      <div class="code">Write 10 subject lines for an email about <span class="ph">[TOPIC]</span>. Mix curiosity, urgency, benefit, and personal styles. Mark which 2 you'd test first and why.</div>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <span class="label">Stack Them</span>
+    <p>Chain prompts: generate the email, then say "now write 5 subject lines for this" and "shorten it for mobile". The AI keeps context.</p>
+  </div>
+
+  <div class="pagefoot"><span>AI Prompts That Print Money</span><span>6</span></div>
+</section>
+
+<!-- CH4 -->
+<section class="page">
+  <div class="chapter-num">Category 04</div>
+  <h2 class="chapter">Marketing &amp; Ads</h2>
+  <div class="rule"></div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">10</div><div class="title">The AIDA Ad Writer</div><div class="tag">Ads</div></div>
+    <div class="prompt-body">
+      <div class="why">Proven copywriting formula, done for you.</div>
+      <div class="code">Write ad copy for <span class="ph">[PRODUCT]</span> using the AIDA formula (Attention, Interest, Desire, Action). Target audience: <span class="ph">[AUDIENCE]</span>. Give me 3 versions of different lengths.</div>
+    </div>
+  </div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">11</div><div class="title">Landing Page Copy</div><div class="tag">Ads</div></div>
+    <div class="prompt-body">
+      <div class="why">A full page of conversion copy in one go.</div>
+      <div class="code">Write landing page copy for <span class="ph">[PRODUCT/SERVICE]</span>. Include: headline, subheadline, 3 benefit bullets, social proof section, FAQ (5 Qs), and a strong CTA. Persuasive, clear, benefit-focused.</div>
+    </div>
+  </div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">12</div><div class="title">Customer Avatar Builder</div><div class="tag">Ads</div></div>
+    <div class="prompt-body">
+      <div class="why">Know exactly who you're selling to.</div>
+      <div class="code">Create a detailed customer avatar for <span class="ph">[PRODUCT]</span>. Include demographics, goals, fears, daily frustrations, where they hang out online, and the exact words they'd use to describe their problem.</div>
+    </div>
+  </div>
+
+  <div class="pagefoot"><span>AI Prompts That Print Money</span><span>7</span></div>
+</section>
+
+<!-- CH5 -->
+<section class="page">
+  <div class="chapter-num">Category 05</div>
+  <h2 class="chapter">Productivity &amp; Automation</h2>
+  <div class="rule"></div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">13</div><div class="title">Inbox to Action Plan</div><div class="tag">Productivity</div></div>
+    <div class="prompt-body">
+      <div class="why">Turn a messy email into clear next steps.</div>
+      <div class="code">Here's an email I received: <span class="ph">[PASTE EMAIL]</span>. Summarize it in 2 lines, list any action items with deadlines, and draft a professional reply.</div>
+    </div>
+  </div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">14</div><div class="title">Meeting Notes Magic</div><div class="tag">Productivity</div></div>
+    <div class="prompt-body">
+      <div class="why">Raw notes become a tidy, shareable summary.</div>
+      <div class="code">Turn these rough meeting notes into a clean summary with sections: Decisions Made, Action Items (with owners), and Open Questions. Notes: <span class="ph">[PASTE NOTES]</span></div>
+    </div>
+  </div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">15</div><div class="title">Weekly Planner</div><div class="tag">Productivity</div></div>
+    <div class="prompt-body">
+      <div class="why">Get organized in seconds, not hours.</div>
+      <div class="code">I have these goals this week: <span class="ph">[LIST GOALS]</span>. Build me a realistic day-by-day plan, batching similar tasks, with buffer time and one "most important task" per day.</div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <span class="label">Privacy Reminder</span>
+    <p>Don't paste sensitive client data, passwords, or private personal info into public AI tools. Use placeholders or anonymize first.</p>
+  </div>
+
+  <div class="pagefoot"><span>AI Prompts That Print Money</span><span>8</span></div>
+</section>
+
+<!-- CH6 -->
+<section class="page">
+  <div class="chapter-num">Category 06</div>
+  <h2 class="chapter">Digital Products &amp; Selling</h2>
+  <div class="rule"></div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">16</div><div class="title">Product Idea Generator</div><div class="tag">Products</div></div>
+    <div class="prompt-body">
+      <div class="why">Find a digital product people actually want.</div>
+      <div class="code">I have skills in <span class="ph">[YOUR SKILLS]</span> and my audience is <span class="ph">[AUDIENCE]</span>. Suggest 10 digital product ideas I could create and sell (ebooks, templates, courses, etc.). For each, give a one-line pitch and a price range.</div>
+    </div>
+  </div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">17</div><div class="title">Sales Page That Converts</div><div class="tag">Products</div></div>
+    <div class="prompt-body">
+      <div class="why">The exact copy that turns visitors into buyers.</div>
+      <div class="code">Write a sales page for my digital product: <span class="ph">[PRODUCT + WHAT'S INSIDE]</span>. Include a hook, the problem, the solution, what's inside (bullets), who it's for, price justification, guarantee, and a final CTA.</div>
+    </div>
+  </div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">18</div><div class="title">Pricing Strategist</div><div class="tag">Products</div></div>
+    <div class="prompt-body">
+      <div class="why">Stop guessing what to charge.</div>
+      <div class="code">My product is <span class="ph">[DESCRIBE]</span> for <span class="ph">[AUDIENCE]</span>. Suggest a 3-tier pricing structure (good/better/best), what to include in each, and one upsell idea.</div>
+    </div>
+  </div>
+
+  <div class="pagefoot"><span>AI Prompts That Print Money</span><span>9</span></div>
+</section>
+
+<!-- CH7 -->
+<section class="page">
+  <div class="chapter-num">Category 07</div>
+  <h2 class="chapter">Learning &amp; Research Fast</h2>
+  <div class="rule"></div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">19</div><div class="title">Explain Like I'm 5</div><div class="tag">Learning</div></div>
+    <div class="prompt-body">
+      <div class="why">Understand any complex topic in minutes.</div>
+      <div class="code">Explain <span class="ph">[COMPLEX TOPIC]</span> like I'm 5, then like I'm 15, then at an expert level. Use a simple analogy for each.</div>
+    </div>
+  </div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">20</div><div class="title">The 7-Day Skill Plan</div><div class="tag">Learning</div></div>
+    <div class="prompt-body">
+      <div class="why">A structured path to learn anything fast.</div>
+      <div class="code">I want to learn <span class="ph">[SKILL]</span> in 7 days, studying 1 hour a day. Build me a day-by-day plan with free resources, one practice task per day, and a mini-project at the end.</div>
+    </div>
+  </div>
+
+  <div class="prompt-card">
+    <div class="prompt-head"><div class="num">21</div><div class="title">Summarize &amp; Quiz Me</div><div class="tag">Learning</div></div>
+    <div class="prompt-body">
+      <div class="why">Actually remember what you read.</div>
+      <div class="code">Summarize this in 5 key points: <span class="ph">[PASTE TEXT]</span>. Then quiz me with 3 questions to test if I understood it.</div>
+    </div>
+  </div>
+
+  <div class="pagefoot"><span>AI Prompts That Print Money</span><span>10</span></div>
+</section>
+
+<!-- CH8 BONUS -->
+<section class="page">
+  <div class="chapter-num">Category 08 · Bonus</div>
+  <h2 class="chapter">Prompt Power-Ups</h2>
+  <div class="rule"></div>
+  <p class="lead">Add these phrases to ANY prompt to instantly get better results. These are the multipliers the pros use.</p>
+
+  <div class="grid2">
+    <div class="mini"><h4>Get tailored output</h4><p>"Ask me clarifying questions before you answer."</p></div>
+    <div class="mini"><h4>Improve quality</h4><p>"Give me your first draft, then critique it and write a better version."</p></div>
+    <div class="mini"><h4>Match your voice</h4><p>"Here are 2 samples of my writing — copy this tone: [paste]."</p></div>
+    <div class="mini"><h4>More options</h4><p>"Give me 5 wildly different angles, not variations of the same one."</p></div>
+    <div class="mini"><h4>Stay concise</h4><p>"Be concise. No intro, no summary, just the answer."</p></div>
+    <div class="mini"><h4>Think first</h4><p>"Think step by step before giving the final answer."</p></div>
+  </div>
+
+  <div class="callout tip">
+    <span class="label">The Meta-Prompt</span>
+    <p>Stuck? Ask the AI to build the prompt for you: <em>"Act as a prompt engineer. Write me the perfect prompt to [your goal]."</em> Then run that prompt.</p>
+  </div>
+
+  <div class="quote">You don't need to be an expert.<br>You just need the right prompt.</div>
+
+  <p class="center" style="margin-top:20px;color:#94a3b8;font-size:13px;">Thanks for reading. If this saved you time, a review means the world. - @codex_here</p>
+
+  <div class="pagefoot"><span>AI Prompts That Print Money</span><span>11</span></div>
+</section>
+
+</body>
+</html>
