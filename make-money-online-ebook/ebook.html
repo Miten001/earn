@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Make Money Online: The Beginner's Blueprint</title>
+<style>
+  :root{
+    --ink:#1a1a2e;
+    --muted:#555;
+    --brand:#4f46e5;
+    --brand2:#7c3aed;
+    --accent:#06b6d4;
+    --bg-soft:#f4f4fb;
+    --good:#059669;
+    --warn:#d97706;
+    --bad:#dc2626;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);
+    line-height:1.65;
+    font-size:15px;
+  }
+  .page{
+    page-break-after:always;
+    padding:64px 60px;
+    min-height:100vh;
+    position:relative;
+  }
+  .page:last-child{page-break-after:auto;}
+
+  /* COVER */
+  .cover{
+    background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 55%,#06b6d4 130%);
+    color:#fff;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+    padding:80px 60px;
+  }
+  .cover .kicker{
+    text-transform:uppercase;
+    letter-spacing:4px;
+    font-size:13px;
+    font-weight:600;
+    opacity:.85;
+    border:1px solid rgba(255,255,255,.4);
+    padding:8px 18px;
+    border-radius:30px;
+    margin-bottom:36px;
+  }
+  .cover h1{
+    font-size:54px;
+    line-height:1.1;
+    font-weight:800;
+    margin-bottom:24px;
+    letter-spacing:-1px;
+  }
+  .cover h1 .hl{
+    background:linear-gradient(90deg,#fde047,#fb923c);
+    -webkit-background-clip:text;
+    background-clip:text;
+    -webkit-text-fill-color:transparent;
+  }
+  .cover .sub{
+    font-size:20px;
+    font-weight:400;
+    opacity:.92;
+    max-width:560px;
+    margin-bottom:48px;
+  }
+  .cover .badges{
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+    justify-content:center;
+    margin-bottom:60px;
+  }
+  .cover .badge{
+    background:rgba(255,255,255,.15);
+    backdrop-filter:blur(4px);
+    border:1px solid rgba(255,255,255,.25);
+    padding:10px 18px;
+    border-radius:12px;
+    font-size:14px;
+    font-weight:600;
+  }
+  .cover .author{
+    position:absolute;
+    bottom:60px;
+    font-size:16px;
+    letter-spacing:1px;
+    opacity:.9;
+  }
+  .cover .author strong{font-weight:700;}
+
+  h2.chapter{
+    font-size:32px;
+    font-weight:800;
+    color:var(--ink);
+    margin-bottom:8px;
+    letter-spacing:-.5px;
+  }
+  .chapter-num{
+    color:var(--brand);
+    font-weight:700;
+    font-size:14px;
+    text-transform:uppercase;
+    letter-spacing:2px;
+    margin-bottom:6px;
+  }
+  .rule{
+    height:4px;width:60px;
+    background:linear-gradient(90deg,var(--brand),var(--accent));
+    border-radius:4px;
+    margin:14px 0 28px;
+  }
+  h3{font-size:20px;font-weight:700;margin:26px 0 10px;color:var(--ink);}
+  p{margin-bottom:14px;color:var(--muted);}
+  p strong{color:var(--ink);}
+  ul,ol{margin:0 0 16px 22px;color:var(--muted);}
+  li{margin-bottom:8px;}
+
+  .lead{font-size:17px;color:var(--ink);font-weight:500;margin-bottom:20px;}
+
+  .callout{
+    border-radius:12px;
+    padding:18px 22px;
+    margin:22px 0;
+    border-left:5px solid var(--brand);
+    background:var(--bg-soft);
+  }
+  .callout.tip{border-color:var(--good);background:#ecfdf5;}
+  .callout.warn{border-color:var(--warn);background:#fffbeb;}
+  .callout.danger{border-color:var(--bad);background:#fef2f2;}
+  .callout .label{
+    font-weight:700;font-size:13px;text-transform:uppercase;
+    letter-spacing:1px;margin-bottom:6px;display:block;
+  }
+  .callout.tip .label{color:var(--good);}
+  .callout.warn .label{color:var(--warn);}
+  .callout.danger .label{color:var(--bad);}
+  .callout p{margin-bottom:0;color:var(--ink);}
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin:20px 0;
+    font-size:14px;
+  }
+  th{
+    background:var(--brand);
+    color:#fff;
+    text-align:left;
+    padding:12px 14px;
+    font-weight:600;
+  }
+  td{
+    padding:11px 14px;
+    border-bottom:1px solid #e5e7eb;
+    color:var(--muted);
+  }
+  tr:nth-child(even) td{background:#fafafe;}
+
+  .step{
+    display:flex;
+    gap:16px;
+    margin:18px 0;
+    align-items:flex-start;
+  }
+  .step .n{
+    flex:none;
+    width:34px;height:34px;
+    border-radius:50%;
+    background:linear-gradient(135deg,var(--brand),var(--brand2));
+    color:#fff;font-weight:700;
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;
+  }
+  .step .body{flex:1;}
+  .step .body h4{font-size:16px;color:var(--ink);margin-bottom:3px;}
+  .step .body p{margin-bottom:0;font-size:14px;}
+
+  /* TOC */
+  .toc-item{
+    display:flex;
+    justify-content:space-between;
+    padding:12px 0;
+    border-bottom:1px dashed #d1d5db;
+    font-size:16px;
+  }
+  .toc-item .t{color:var(--ink);font-weight:600;}
+  .toc-item .t span{color:var(--brand);margin-right:10px;}
+  .toc-item .pg{color:var(--muted);}
+
+  .pagefoot{
+    position:absolute;
+    bottom:28px;left:60px;right:60px;
+    display:flex;justify-content:space-between;
+    font-size:11px;color:#9ca3af;
+    border-top:1px solid #eee;
+    padding-top:8px;
+  }
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0;}
+  .mini{
+    background:var(--bg-soft);
+    border-radius:10px;
+    padding:16px 18px;
+  }
+  .mini h4{font-size:15px;color:var(--brand);margin-bottom:6px;}
+  .mini p{font-size:13px;margin-bottom:0;}
+
+  .quote{
+    font-size:22px;
+    font-style:italic;
+    color:var(--ink);
+    text-align:center;
+    margin:30px 0;
+    line-height:1.4;
+    font-weight:600;
+  }
+  .center{text-align:center;}
+  .pwc{color:var(--brand);font-weight:700;}
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<section class="page cover">
+  <div class="kicker">2026 Edition · No-Fluff Guide</div>
+  <h1>Make Money<br>Online<br><span class="hl">$0 to $1,000</span></h1>
+  <div class="sub">The beginner's blueprint to earning your first real income online — even if you're starting from absolute zero.</div>
+  <div class="badges">
+    <div class="badge">6 Proven Methods</div>
+    <div class="badge">30-Day Action Plan</div>
+    <div class="badge">Copy-Paste Templates</div>
+  </div>
+  <div class="author">A practical guide by <strong>Miten</strong></div>
+</section>
+
+<!-- COPYRIGHT -->
+<section class="page">
+  <div class="chapter-num">Front Matter</div>
+  <h2 class="chapter">About This Guide</h2>
+  <div class="rule"></div>
+  <p class="lead">This book gives you a clear, honest path to your first $1,000 online. No hype. No "get rich quick" lies. Just methods that actually work and the exact steps to start.</p>
+
+  <h3>Who this is for</h3>
+  <ul>
+    <li>Complete beginners who don't know where to start</li>
+    <li>Anyone who wants a side income in their spare time</li>
+    <li>People tired of vague advice and ready for a real plan</li>
+  </ul>
+
+  <h3>The one promise</h3>
+  <p>I won't promise you'll get rich. I <strong>will</strong> promise that if you follow the 30-day plan in this book, you'll have a real, working income stream started — bigger than zero, and growing.</p>
+
+  <div class="callout warn">
+    <span class="label">Honest Disclaimer</span>
+    <p>No income is truly "without work." Every method here takes effort and consistency. Results vary based on the time and energy you put in. This guide is educational, not a guarantee of earnings.</p>
+  </div>
+
+  <p style="margin-top:30px;font-size:13px;color:#9ca3af;">© 2026 · All rights reserved. This e-book is for the buyer's personal use. Please do not redistribute or resell.</p>
+
+  <div class="pagefoot"><span>Make Money Online — The Beginner's Blueprint</span><span>2</span></div>
+</section>
+
+<!-- TOC -->
+<section class="page">
+  <div class="chapter-num">Contents</div>
+  <h2 class="chapter">What's Inside</h2>
+  <div class="rule"></div>
+
+  <div class="toc-item"><div class="t"><span>01</span>The Right Mindset (Read This First)</div><div class="pg">4</div></div>
+  <div class="toc-item"><div class="t"><span>02</span>Method 1 — Freelancing Your Skills</div><div class="pg">5</div></div>
+  <div class="toc-item"><div class="t"><span>03</span>Method 2 — Selling Digital Products</div><div class="pg">6</div></div>
+  <div class="toc-item"><div class="t"><span>04</span>Method 3 — Affiliate Marketing</div><div class="pg">7</div></div>
+  <div class="toc-item"><div class="t"><span>05</span>Method 4 — Print on Demand</div><div class="pg">8</div></div>
+  <div class="toc-item"><div class="t"><span>06</span>Method 5 — Services & Coaching</div><div class="pg">9</div></div>
+  <div class="toc-item"><div class="t"><span>07</span>Your First Client: Copy-Paste Pitch</div><div class="pg">10</div></div>
+  <div class="toc-item"><div class="t"><span>08</span>The 30-Day Action Plan</div><div class="pg">11</div></div>
+  <div class="toc-item"><div class="t"><span>09</span>The Lean Tools Toolkit</div><div class="pg">12</div></div>
+  <div class="toc-item"><div class="t"><span>10</span>Scam-Proof Yourself</div><div class="pg">13</div></div>
+
+  <div class="pagefoot"><span>Make Money Online — The Beginner's Blueprint</span><span>3</span></div>
+</section>
+
+<!-- CH1 MINDSET -->
+<section class="page">
+  <div class="chapter-num">Chapter 01</div>
+  <h2 class="chapter">The Right Mindset</h2>
+  <div class="rule"></div>
+  <p class="lead">Before any method, fix your head. This is where 90% of beginners quit — and where you'll separate yourself.</p>
+
+  <h3>Money online = solving problems</h3>
+  <p>Nobody pays you for "wanting money." They pay you because you <strong>solve a problem</strong> or <strong>save them time</strong>. Every method in this book is just a different way to deliver value. Keep asking: "Whose problem am I solving?"</p>
+
+  <h3>Start before you feel ready</h3>
+  <p>You will never feel 100% ready. The people earning online aren't smarter — they just started and improved in public. Done beats perfect.</p>
+
+  <div class="callout tip">
+    <span class="label">The 1% Rule</span>
+    <p>Improve just 1% each day and you'll be ~37x better in a year. Tiny consistent action crushes occasional bursts of motivation.</p>
+  </div>
+
+  <h3>Pick ONE method</h3>
+  <p>The biggest beginner mistake is jumping between 5 methods at once. Pick one from this book, give it 30 focused days, then judge. Focus is your superpower.</p>
+
+  <div class="quote">"The best time to start was a year ago. The second best time is today."</div>
+
+  <div class="pagefoot"><span>Make Money Online — The Beginner's Blueprint</span><span>4</span></div>
+</section>
+
+<!-- CH2 FREELANCING -->
+<section class="page">
+  <div class="chapter-num">Chapter 02 · Method 1</div>
+  <h2 class="chapter">Freelancing Your Skills</h2>
+  <div class="rule"></div>
+  <p class="lead">The fastest way to your first $1,000. You trade a skill for money — no audience, no inventory, no waiting.</p>
+
+  <h3>Skills that sell right now</h3>
+  <table>
+    <tr><th>Skill</th><th>Starting Rate</th><th>Where to learn (free)</th></tr>
+    <tr><td>Writing / copywriting</td><td>$20–80 / article</td><td>YouTube, blogs</td></tr>
+    <tr><td>Graphic design (Canva)</td><td>$15–50 / design</td><td>Canva Design School</td></tr>
+    <tr><td>Video editing</td><td>$30–150 / video</td><td>YouTube tutorials</td></tr>
+    <tr><td>Virtual assistant</td><td>$5–15 / hour</td><td>On the job</td></tr>
+    <tr><td>Social media management</td><td>$150–500 / month</td><td>Free courses online</td></tr>
+  </table>
+
+  <h3>Where to find work</h3>
+  <ul>
+    <li><strong>Upwork & Fiverr</strong> — biggest beginner marketplaces</li>
+    <li><strong>LinkedIn</strong> — post your skill, DM small businesses</li>
+    <li><strong>Facebook groups</strong> — niche groups always need help</li>
+    <li><strong>Local businesses</strong> — many have zero online presence</li>
+  </ul>
+
+  <div class="callout tip">
+    <span class="label">Fast-Start Tip</span>
+    <p>Do your first 1–2 jobs at a low price (or even free) just to collect reviews. Social proof unlocks higher-paying clients fast.</p>
+  </div>
+
+  <div class="pagefoot"><span>Make Money Online — The Beginner's Blueprint</span><span>5</span></div>
+</section>
+
+<!-- CH3 DIGITAL PRODUCTS -->
+<section class="page">
+  <div class="chapter-num">Chapter 03 · Method 2</div>
+  <h2 class="chapter">Selling Digital Products</h2>
+  <div class="rule"></div>
+  <p class="lead">Build once, sell forever. Zero inventory, ~100% profit margin. This is how you scale beyond trading time for money.</p>
+
+  <h3>Products you can make today</h3>
+  <div class="grid2">
+    <div class="mini"><h4>E-books & Guides</h4><p>Exactly like this one. Teach what you know.</p></div>
+    <div class="mini"><h4>Notion Templates</h4><p>Planners, trackers, dashboards. Huge demand.</p></div>
+    <div class="mini"><h4>Canva Templates</h4><p>Social posts, resumes, presentations.</p></div>
+    <div class="mini"><h4>Printables</h4><p>Planners, wall art, checklists.</p></div>
+  </div>
+
+  <h3>Where to sell</h3>
+  <p><strong>Gumroad</strong> is the easiest platform for beginners — free to start, handles payments and delivery. <strong>Etsy</strong> is great for printables and templates because it has built-in traffic.</p>
+
+  <div class="callout">
+    <span class="label">The Smart Play</span>
+    <p>Make a free "lite" version as a lead magnet. Give it away to build an email list, then sell the full version. Free traffic → paid customers.</p>
+  </div>
+
+  <h3>Pricing for first sales</h3>
+  <p>Start low ($5–$9) or use "pay what you want." Early sales and reviews matter more than price. Raise prices once you have proof people love it.</p>
+
+  <div class="pagefoot"><span>Make Money Online — The Beginner's Blueprint</span><span>6</span></div>
+</section>
+
+<!-- CH4 AFFILIATE -->
+<section class="page">
+  <div class="chapter-num">Chapter 04 · Method 3</div>
+  <h2 class="chapter">Affiliate Marketing</h2>
+  <div class="rule"></div>
+  <p class="lead">Recommend products you like, earn a commission on each sale. No product creation, no customer support.</p>
+
+  <h3>How it works</h3>
+  <div class="step"><div class="n">1</div><div class="body"><h4>Join a program</h4><p>Amazon Associates, Impact, ShareASale, or any brand's affiliate page.</p></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><h4>Get your unique link</h4><p>It tracks every sale that comes from you.</p></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><h4>Share it where people seek advice</h4><p>Blog reviews, YouTube descriptions, niche communities.</p></div></div>
+  <div class="step"><div class="n">4</div><div class="body"><h4>Earn commission</h4><p>Typically 3%–50% depending on the product type.</p></div></div>
+
+  <h3>What converts best</h3>
+  <ul>
+    <li><strong>"Best X for Y" content</strong> — e.g. "Best mic for podcasting under $50"</li>
+    <li><strong>Honest reviews & tutorials</strong> — show the product solving a real problem</li>
+    <li><strong>Comparison posts</strong> — "Tool A vs Tool B"</li>
+  </ul>
+
+  <div class="callout warn">
+    <span class="label">Trust First</span>
+    <p>Only promote things you'd genuinely recommend. One bad recommendation kills the trust that makes affiliate income work. Always disclose affiliate links.</p>
+  </div>
+
+  <div class="pagefoot"><span>Make Money Online — The Beginner's Blueprint</span><span>7</span></div>
+</section>
+
+<!-- CH5 POD -->
+<section class="page">
+  <div class="chapter-num">Chapter 05 · Method 4</div>
+  <h2 class="chapter">Print on Demand</h2>
+  <div class="rule"></div>
+  <p class="lead">Sell custom t-shirts, mugs, and posters without holding any inventory. The printer ships directly to your customer.</p>
+
+  <h3>The model</h3>
+  <p>You upload a design. When someone orders, the print partner (Printful, Printify) prints and ships it. You keep the margin. <strong>You never touch a product.</strong></p>
+
+  <table>
+    <tr><th>Platform</th><th>Best for</th><th>Traffic source</th></tr>
+    <tr><td>Etsy + Printful</td><td>Beginners</td><td>Built-in Etsy search</td></tr>
+    <tr><td>Amazon Merch</td><td>T-shirts</td><td>Amazon shoppers</td></tr>
+    <tr><td>Redbubble</td><td>Hands-off start</td><td>Site's own traffic</td></tr>
+    <tr><td>Shopify + Printify</td><td>Own brand</td><td>Your marketing</td></tr>
+  </table>
+
+  <h3>Winning design strategy</h3>
+  <ul>
+    <li>Target <strong>niches & passions</strong> — "cat mom nurse," "bass fishing dad"</li>
+    <li>Use <strong>text-based designs</strong> — easiest to make, often sell best</li>
+    <li>Ride <strong>trends & events</strong> — holidays, hobbies, professions</li>
+  </ul>
+
+  <div class="callout tip">
+    <span class="label">Low-Risk Win</span>
+    <p>Print on demand has almost zero startup cost. You only pay the printer after a customer has already paid you. Test 20 designs and double down on what sells.</p>
+  </div>
+
+  <div class="pagefoot"><span>Make Money Online — The Beginner's Blueprint</span><span>8</span></div>
+</section>
+
+<!-- CH6 SERVICES -->
+<section class="page">
+  <div class="chapter-num">Chapter 06 · Method 5</div>
+  <h2 class="chapter">Services & Coaching</h2>
+  <div class="rule"></div>
+  <p class="lead">Package what you already know into a service or coaching offer. Highest income per hour of all the methods here.</p>
+
+  <h3>If you're good at something, someone will pay to learn it</h3>
+  <p>Fitness, a language, an instrument, coding, productivity, a software tool — people pay for shortcuts to skills. You don't need to be a world expert, just a few steps ahead of your student.</p>
+
+  <h3>Productized service ideas</h3>
+  <div class="grid2">
+    <div class="mini"><h4>1-on-1 Coaching</h4><p>Sell via Zoom. $20–$100/hour to start.</p></div>
+    <div class="mini"><h4>Group Workshops</h4><p>One session, many paying attendees.</p></div>
+    <div class="mini"><h4>Done-for-you Service</h4><p>"I'll set up your X for $99."</p></div>
+    <div class="mini"><h4>Audit / Review</h4><p>Charge to review and give feedback.</p></div>
+  </div>
+
+  <div class="callout">
+    <span class="label">Stack It</span>
+    <p>Coaching pairs perfectly with a digital product: sell the e-book at $9, then offer coaching at $99 to people who want personal help. Same audience, two income tiers.</p>
+  </div>
+
+  <div class="pagefoot"><span>Make Money Online — The Beginner's Blueprint</span><span>9</span></div>
+</section>
+
+<!-- CH7 PITCH -->
+<section class="page">
+  <div class="chapter-num">Chapter 07</div>
+  <h2 class="chapter">Your First Client: The Pitch</h2>
+  <div class="rule"></div>
+  <p class="lead">Landing the first client is the hardest. Here's a copy-paste cold message that actually gets replies. Personalize the brackets.</p>
+
+  <div class="callout">
+    <span class="label">Cold Pitch Template</span>
+    <p style="font-style:italic;">"Hi [Name], I came across [their business] and noticed [specific thing — e.g. your Instagram hasn't posted in 3 weeks]. I help [their type of business] with [your skill]. I'd love to [do one small thing] for you free this week — if you like it, we can talk about more. No pressure either way. Would that be helpful?"</p>
+  </div>
+
+  <h3>Why this works</h3>
+  <ul>
+    <li><strong>Specific</strong> — proves you actually looked at their business</li>
+    <li><strong>Low risk</strong> — free sample removes their fear</li>
+    <li><strong>No pressure</strong> — feels human, not salesy</li>
+  </ul>
+
+  <h3>The numbers game</h3>
+  <p>Send <strong>10 personalized pitches a day</strong>. Even a 5% reply-to-client rate means a few clients per week. Most beginners send 3 messages, get ignored, and quit. Don't be most beginners.</p>
+
+  <div class="callout tip">
+    <span class="label">Track Everything</span>
+    <p>Keep a simple sheet: who you pitched, when, and the reply. Follow up once after 3 days — follow-ups close a huge share of deals.</p>
+  </div>
+
+  <div class="pagefoot"><span>Make Money Online — The Beginner's Blueprint</span><span>10</span></div>
+</section>
+
+<!-- CH8 30 DAY PLAN -->
+<section class="page">
+  <div class="chapter-num">Chapter 08</div>
+  <h2 class="chapter">The 30-Day Action Plan</h2>
+  <div class="rule"></div>
+  <p class="lead">Stop reading, start doing. Here's exactly what to do each week to go from zero to your first sale.</p>
+
+  <h3>Week 1 — Choose & Set Up</h3>
+  <ul>
+    <li>Pick ONE method from this book (don't overthink it)</li>
+    <li>Set up your profile/store/portfolio</li>
+    <li>Spend 2 hours studying 3 successful people in that niche</li>
+  </ul>
+
+  <h3>Week 2 — Build Your Offer</h3>
+  <ul>
+    <li>Create your first product, service package, or 3 portfolio samples</li>
+    <li>Write a clear, benefit-focused description</li>
+    <li>Set a beginner-friendly price</li>
+  </ul>
+
+  <h3>Week 3 — Get In Front of People</h3>
+  <ul>
+    <li>Send 10 pitches/day OR post daily where your audience hangs out</li>
+    <li>Share a free sample or lead magnet</li>
+    <li>Engage genuinely in 2–3 communities</li>
+  </ul>
+
+  <h3>Week 4 — Close & Improve</h3>
+  <ul>
+    <li>Follow up with everyone who showed interest</li>
+    <li>Deliver amazing work → ask for a review/testimonial</li>
+    <li>Raise your price slightly for the next customer</li>
+  </ul>
+
+  <div class="callout tip">
+    <span class="label">Goal</span>
+    <p>By day 30, your only target is <strong>one paying customer</strong>. The first dollar is the hardest and the most important. After that, you just repeat and scale.</p>
+  </div>
+
+  <div class="pagefoot"><span>Make Money Online — The Beginner's Blueprint</span><span>11</span></div>
+</section>
+
+<!-- CH9 TOOLS -->
+<section class="page">
+  <div class="chapter-num">Chapter 09</div>
+  <h2 class="chapter">The Lean Tools Toolkit</h2>
+  <div class="rule"></div>
+  <p class="lead">You don't need expensive software to start. Here's a complete free/cheap stack to run everything in this book.</p>
+
+  <table>
+    <tr><th>Need</th><th>Free Tool</th><th>Use it for</th></tr>
+    <tr><td>Design</td><td>Canva</td><td>Graphics, covers, social posts</td></tr>
+    <tr><td>Writing</td><td>Google Docs</td><td>Drafts, e-books, proposals</td></tr>
+    <tr><td>Selling digital</td><td>Gumroad</td><td>Payments + file delivery</td></tr>
+    <tr><td>Email list</td><td>MailerLite</td><td>Free up to 1,000 subscribers</td></tr>
+    <tr><td>Scheduling</td><td>Calendly</td><td>Booking coaching calls</td></tr>
+    <tr><td>Video</td><td>CapCut</td><td>Editing reels & content</td></tr>
+    <tr><td>Project tracking</td><td>Notion / Trello</td><td>Staying organized</td></tr>
+    <tr><td>Invoicing</td><td>Wave</td><td>Getting paid by clients</td></tr>
+  </table>
+
+  <div class="callout warn">
+    <span class="label">Don't Fall Into the Tool Trap</span>
+    <p>Buying tools feels like progress but isn't. Start with free versions. Only upgrade when a tool is actively limiting income you're already making.</p>
+  </div>
+
+  <div class="pagefoot"><span>Make Money Online — The Beginner's Blueprint</span><span>12</span></div>
+</section>
+
+<!-- CH10 SCAM PROOF -->
+<section class="page">
+  <div class="chapter-num">Chapter 10</div>
+  <h2 class="chapter">Scam-Proof Yourself</h2>
+  <div class="rule"></div>
+  <p class="lead">The online money world is full of traps. Here's how to spot and avoid every one of them.</p>
+
+  <h3>Red flags — run away if you see these</h3>
+  <ul>
+    <li><strong>"Pay to start earning"</strong> — legit work doesn't charge you to work</li>
+    <li><strong>Guaranteed returns</strong> — "earn $500/day guaranteed" is always a lie</li>
+    <li><strong>Recruiting over product</strong> — classic MLM / pyramid sign</li>
+    <li><strong>Pressure to decide NOW</strong> — urgency is a manipulation tactic</li>
+    <li><strong>Vague business model</strong> — if you can't explain how it makes money, don't</li>
+  </ul>
+
+  <div class="callout danger">
+    <span class="label">The Golden Rule</span>
+    <p>If something promises big money for little or no work, it's either a scam or it's selling you the dream of making money (not actual money). Real income always trades value for value.</p>
+  </div>
+
+  <h3>The honest truth</h3>
+  <p>Everything in this book works — but all of it requires real effort, patience, and consistency. There's no button that prints money. The good news? That's exactly why most people quit, leaving the opportunity wide open for those who don't.</p>
+
+  <div class="quote">You've got the blueprint.<br>Now go build something. 🚀</div>
+
+  <p class="center" style="margin-top:24px;color:#9ca3af;font-size:13px;">Thank you for reading. If this helped you, leave a review — it means the world.</p>
+
+  <div class="pagefoot"><span>Make Money Online — The Beginner's Blueprint</span><span>13</span></div>
+</section>
+
+</body>
+</html>
