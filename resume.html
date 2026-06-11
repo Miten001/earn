@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Resume - Miten Patel</title>
+<style>
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #2b2f33;
+    font-size: 10.2px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    display: flex;
+  }
+
+  /* ---------- LEFT SIDEBAR ---------- */
+  .sidebar {
+    width: 70mm;
+    background: #14303f;
+    color: #dfe7ec;
+    padding: 26px 20px;
+  }
+
+  .name {
+    font-size: 23px;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.1;
+    letter-spacing: 0.3px;
+  }
+
+  .role {
+    margin-top: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #5ec6c0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .sidebar-section {
+    margin-top: 22px;
+  }
+
+  .sidebar-section h2 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #ffffff;
+    border-bottom: 1px solid #2f5060;
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+  }
+
+  .contact-item {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 8px;
+    font-size: 9.6px;
+    word-break: break-word;
+  }
+
+  .contact-item .ic {
+    color: #5ec6c0;
+    width: 16px;
+    flex-shrink: 0;
+    font-weight: 700;
+  }
+
+  .skill {
+    margin-bottom: 11px;
+  }
+
+  .skill .label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9.6px;
+    margin-bottom: 3px;
+    color: #eef3f6;
+  }
+
+  .bar {
+    height: 5px;
+    background: #2f5060;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .bar span {
+    display: block;
+    height: 100%;
+    background: #5ec6c0;
+    border-radius: 3px;
+  }
+
+  .tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .tag {
+    background: #1d3f50;
+    border: 1px solid #2f5060;
+    color: #cfe0e7;
+    font-size: 8.8px;
+    padding: 3px 7px;
+    border-radius: 10px;
+  }
+
+  .lang-item {
+    margin-bottom: 8px;
+    font-size: 9.6px;
+  }
+
+  .lang-item .lvl {
+    color: #9fb6c1;
+    font-size: 8.8px;
+  }
+
+  /* ---------- RIGHT MAIN ---------- */
+  .main {
+    flex: 1;
+    padding: 26px 24px;
+  }
+
+  .section {
+    margin-bottom: 18px;
+  }
+
+  .section h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    color: #14303f;
+    margin-bottom: 9px;
+    position: relative;
+    padding-left: 16px;
+  }
+
+  .section h2::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 2px;
+    width: 7px;
+    height: 14px;
+    background: #5ec6c0;
+    border-radius: 2px;
+  }
+
+  .summary {
+    font-size: 10px;
+    color: #41484d;
+    text-align: justify;
+  }
+
+  .entry {
+    margin-bottom: 13px;
+  }
+
+  .entry-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .entry-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #1c2226;
+  }
+
+  .entry-date {
+    font-size: 9px;
+    color: #7c878e;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+
+  .entry-sub {
+    font-size: 9.8px;
+    color: #2a8f88;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .entry ul {
+    padding-left: 15px;
+  }
+
+  .entry li {
+    font-size: 9.7px;
+    color: #41484d;
+    margin-bottom: 2.5px;
+  }
+
+  .edu-item {
+    margin-bottom: 10px;
+  }
+
+  .cert {
+    font-size: 9.7px;
+    color: #41484d;
+    margin-bottom: 4px;
+    padding-left: 14px;
+    position: relative;
+  }
+
+  .cert::before {
+    content: "▹";
+    position: absolute;
+    left: 0;
+    color: #5ec6c0;
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar">
+      <div class="name">MITEN PATEL</div>
+      <div class="role">AI Training Specialist · Maths &amp; Coding</div>
+
+      <div class="sidebar-section">
+        <h2>Contact</h2>
+        <div class="contact-item"><span class="ic">✉</span><span>spyderbusiness7@gmail.com</span></div>
+      </div>
+
+      <div class="sidebar-section">
+        <h2>Core Skills</h2>
+        <div class="skill">
+          <div class="label"><span>Code Evaluation &amp; Debugging</span></div>
+          <div class="bar"><span style="width:94%"></span></div>
+        </div>
+        <div class="skill">
+          <div class="label"><span>Mathematical Reasoning</span></div>
+          <div class="bar"><span style="width:93%"></span></div>
+        </div>
+        <div class="skill">
+          <div class="label"><span>AI Output Evaluation (RLHF)</span></div>
+          <div class="bar"><span style="width:90%"></span></div>
+        </div>
+        <div class="skill">
+          <div class="label"><span>Prompt Engineering</span></div>
+          <div class="bar"><span style="width:88%"></span></div>
+        </div>
+        <div class="skill">
+          <div class="label"><span>Data Labeling &amp; QA</span></div>
+          <div class="bar"><span style="width:90%"></span></div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h2>Tools &amp; Tech</h2>
+        <div class="tag-list">
+          <span class="tag">Python</span>
+          <span class="tag">C / C++</span>
+          <span class="tag">JavaScript</span>
+          <span class="tag">SQL</span>
+          <span class="tag">HTML/CSS</span>
+          <span class="tag">MS Office</span>
+          <span class="tag">Git</span>
+          <span class="tag">ChatGPT</span>
+          <span class="tag">Claude</span>
+          <span class="tag">Gemini</span>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h2>Languages</h2>
+        <div class="lang-item">Hindi <span class="lvl">— Native</span></div>
+        <div class="lang-item">Gujarati <span class="lvl">— Native</span></div>
+        <div class="lang-item">Marathi <span class="lvl">— Fluent</span></div>
+        <div class="lang-item">English <span class="lvl">— Professional</span></div>
+        <div class="lang-item">Russian <span class="lvl">— Conversational</span></div>
+      </div>
+
+      <div class="sidebar-section">
+        <h2>Availability</h2>
+        <div class="lang-item">Remote · Freelance</div>
+        <div class="lang-item">Flexible hours / time zones</div>
+        <div class="lang-item">Multilingual projects welcome</div>
+      </div>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+      <div class="section">
+        <h2>Profile</h2>
+        <p class="summary">
+          Detail-oriented professional with 2.5 years of hands-on experience in
+          computer operations, programming, and mathematics. Strong at reasoning
+          through code and quantitative problems, which translates directly into
+          evaluating, ranking, and improving AI-generated responses (RLHF). Fluent
+          across five languages — Hindi, Gujarati, Marathi, English, and Russian —
+          making me well suited to multilingual AI training and data-quality
+          projects. Reliable at following detailed annotation guidelines while
+          working independently in remote, deadline-driven environments.
+        </p>
+      </div>
+
+      <div class="section">
+        <h2>Experience</h2>
+
+        <div class="entry">
+          <div class="entry-head">
+            <span class="entry-title">AI Training Contributor (Freelance)</span>
+            <span class="entry-date">Open to work</span>
+          </div>
+          <div class="entry-sub">Remote · Maths &amp; Coding projects</div>
+          <ul>
+            <li>Evaluate and rank AI-generated code and math solutions for correctness, efficiency, and clarity.</li>
+            <li>Write high-quality reference solutions and step-by-step explanations to help fine-tune model behavior.</li>
+            <li>Apply detailed annotation guidelines consistently to maintain high quality and agreement scores.</li>
+          </ul>
+        </div>
+
+        <div class="entry">
+          <div class="entry-head">
+            <span class="entry-title">Computer Operator &amp; Programming Assistant</span>
+            <span class="entry-date">2.5 years</span>
+          </div>
+          <div class="entry-sub">[Company Name] · [Location]</div>
+          <ul>
+            <li>Handled data entry, record management, and day-to-day computer operations with accuracy and speed.</li>
+            <li>Built and debugged small programs and automated routine tasks using programming fundamentals.</li>
+            <li>Solved mathematical and logical problems to support reporting and process accuracy.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Education</h2>
+        <div class="edu-item">
+          <div class="entry-head">
+            <span class="entry-title">ITI — Computer Operator &amp; Programming Assistant (COPA)</span>
+            <span class="entry-date">[Year]</span>
+          </div>
+          <div class="entry-sub">Industrial Training Institute</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Highlights</h2>
+        <div class="cert">Strong foundation in mathematics and programming — ideal for code &amp; math AI evaluation tasks.</div>
+        <div class="cert">Multilingual (5 languages) — valuable for multilingual data labeling and localization projects.</div>
+        <div class="cert">2.5 years of practical computer operations and programming experience.</div>
+        <div class="cert">Self-managed, deadline-driven, and comfortable adapting to changing guidelines.</div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
