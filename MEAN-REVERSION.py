@@ -1,5 +1,5 @@
 """
-   anony_v4  -  RSI(2) MEAN-REVERSION  (BEST / FINAL)
+   anony_v5  -   MEAN-REVERSION  +  PROFIT-DIRECTION TRAILING  - @codex_here
    Forex - BTC - ETH - Gold - Silver
    Auto-Detect MT5  |  Auto Trade  |  Rule-based Exit  |  Live GUI
 
@@ -7,16 +7,22 @@
      Entry  : RSI(2) mean-reversion
      Exit   : SMA(5) cross  OR  max-hold bars   (pure mean-reversion exit)
      Safety : ATR(14) * ATR_SL_MULT protective stop  (caps the rare big loss)
-   This combination gave the HIGHEST win rate AND best profit factor in backtest
-   (pooled ~65-67% WR, PF ~1.15). A fixed RR>=2 + trailing exit was tested too
-   but it dropped WR to ~42% and was ~breakeven, so it was rejected.
+     NEW    : profit-direction TRAILING SL + TRAILING TP
+              - SL only moves TOWARD profit (never toward loss)
+              - once in profit, SL is pulled to break-even then trails
+              - TP is pushed further in the profit direction so winners run
+
+   v5 CHANGES vs v4
+     - AUDJPY removed (worst pair in live history: -$79, ~24% win rate)
+     - RISK_PERCENT raised 2.0 -> 3.0
+     - added manage_trailing(): SL/TP trail in the PROFIT direction only
 
    ENTRY RULES
      Trend filter : Close > SMA(200) -> only BUY ; Close < SMA(200) -> only SELL
      BUY  entry   : RSI(2) < 10
      SELL entry   : RSI(2) > 90
-     Exit (BUY)   : last close > SMA(5)  OR  max-hold  OR  ATR protective SL
-     Exit (SELL)  : last close < SMA(5)  OR  max-hold  OR  ATR protective SL
+     Exit (BUY)   : last close > SMA(5)  OR  max-hold  OR  ATR/trailing SL
+     Exit (SELL)  : last close < SMA(5)  OR  max-hold  OR  ATR/trailing SL
 
    NOTE: High win rate => small per-trade edge. USE A LOW-SPREAD BROKER; spread/
          commission can erase the edge. Test on DEMO first. H1/H4 are safest.
@@ -117,7 +123,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 #  *  SETTINGS
 # ---------------------------------------------------------------------------
-RISK_PERCENT       = 1.0      # % balance risked per trade (to protective SL)
+RISK_PERCENT       = 3.0      # % balance risked per trade (was 2.0 in v4)
 SCAN_INTERVAL      = 5        # seconds between scans
 DAILY_MAX_LOSS_PC  = 5.0      # daily max loss % -> stop trading
 MAX_OPEN_POSITIONS = 999
@@ -137,6 +143,14 @@ ATR_SL_MULT   = 3.0       # protective SL = ATR * this
 MAX_HOLD_BARS = 12        # force-exit after this many bars
 RSI_NEAR      = 5         # watchlist: RSI within this of a threshold
 
+# ---- Trailing SL / TP  (PROFIT DIRECTION ONLY) ----
+TRAIL_ENABLED      = True
+TRAIL_START_ATR    = 1.0   # start trailing after price moved this many ATR in profit
+TRAIL_SL_ATR_MULT  = 2.0   # trailing SL distance = ATR * this (behind price)
+TRAIL_TP_ATR_MULT  = 4.0   # trailing TP distance = ATR * this (ahead of price)
+TRAIL_MIN_STEP_ATR = 0.10  # only modify if improvement > this * ATR (anti-spam)
+TRAIL_BREAKEVEN    = True  # snap SL to >= entry once trailing activates
+
 TIMEFRAMES = {
     "M15": mt5.TIMEFRAME_M15,
     "H1" : mt5.TIMEFRAME_H1,
@@ -144,14 +158,12 @@ TIMEFRAMES = {
 }
 TF_MINUTES = {"M15": 15, "H1": 60, "H4": 240}
 
-# Backtest-preferred pairs (best WR/PF). Others still trade but are flagged.
-PREFERRED = {"USDJPY", "USDCAD", "EURCHF", "CHFJPY", "AUDJPY",
-             "EURAUD", "CADJPY", "XAGUSD", "EURGBP"}
+# Profitable pairs only (based on live trade history analysis).
+# AUDJPY removed in v5: it was the single worst pair (-$79, ~24% win rate).
+PREFERRED = {"USDJPY", "USDCAD", "AUDUSD", "CADJPY"}
 
 SYMBOLS = [
-    "EURUSD", "USDJPY", "USDCHF", "AUDUSD", "USDCAD", "EURGBP",
-    "AUDJPY", "CADJPY", "CHFJPY", "EURAUD", "EURCHF",
-    "BTCUSD", "ETHUSD", "XAUUSD", "XAGUSD",
+    "USDJPY", "USDCAD", "AUDUSD", "CADJPY",
 ]
 
 FILLING_MODES = [
@@ -242,13 +254,13 @@ def register_startup():
 def print_banner():
     w = 62
     lines = [
-        ("anony_v4  -  RSI(2) MEAN-REVERSION", "gold"),
+        ("anony_v5  -  RSI(2) MEAN-REVERSION + TRAILING", "gold"),
         ("Forex - Crypto - Gold - Silver", "cyan"),
-        ("Auto-Detect MT5 | Auto Trade | Rule Exit | GUI", "gray"),
+        ("Auto-Detect MT5 | Auto Trade | Trailing Exit | GUI", "gray"),
         ("", ""),
         ("*  HIGHEST WIN RATE config (~66% backtest)  *", "green"),
         ("BUY: RSI2<10 & price>SMA200  |  SELL: RSI2>90 & price<SMA200", "yellow"),
-        ("Exit: cross SMA5 / max-hold / ATR protective stop", "yellow"),
+        ("Exit: SMA5 / max-hold / ATR SL  +  profit-only trailing", "yellow"),
         ("", ""),
         ("Made by  @codex_here", "magenta"),
     ]
@@ -532,18 +544,102 @@ def close_position(pos, reason=""):
     return False
 
 
+def _modify_sltp(pos, new_sl, new_tp):
+    """Send an SLTP modification for an open position."""
+    info = mt5.symbol_info(pos.symbol)
+    if info is None:
+        return False
+    r = mt5.order_send({
+        "action":   mt5.TRADE_ACTION_SLTP,
+        "symbol":   pos.symbol,
+        "position": pos.ticket,
+        "sl":       _round_price(info, new_sl),
+        "tp":       _round_price(info, new_tp),
+        "magic":    MAGIC,
+    })
+    return bool(r and r.retcode == mt5.TRADE_RETCODE_DONE)
+
+
+def _tf_of_position(pos):
+    """Recover the timeframe a position was opened on, from its comment."""
+    comment = getattr(pos, "comment", "") or ""
+    for t in TIMEFRAMES:
+        if comment.endswith(t):
+            return t
+    return "H1"
+
+
+def manage_trailing():
+    """Trail SL and TP in the PROFIT direction ONLY.
+
+       BUY  -> SL only moves UP (toward profit), TP pushed further UP.
+       SELL -> SL only moves DOWN (toward profit), TP pushed further DOWN.
+       SL never moves toward a loss. Once trailing activates, SL is also
+       snapped to at least break-even (entry) if TRAIL_BREAKEVEN is on.
+    """
+    if not TRAIL_ENABLED:
+        return
+    for pos in _our_positions():
+        sym  = pos.symbol
+        tick = mt5.symbol_info_tick(sym)
+        info = mt5.symbol_info(sym)
+        if tick is None or info is None:
+            continue
+
+        tf_name = _tf_of_position(pos)
+        tf_code = TIMEFRAMES.get(tf_name, mt5.TIMEFRAME_H1)
+        df = get_candles(sym, tf_code, count=ATR_PERIOD + 30)
+        if df is None or len(df) < ATR_PERIOD + 2:
+            continue
+        atr = float(_atr(df.iloc[:-1], ATR_PERIOD).iloc[-1])
+        if atr <= 0:
+            continue
+
+        cur_sl = pos.sl or 0.0
+        cur_tp = pos.tp or 0.0
+        entry  = pos.price_open
+        step   = TRAIL_MIN_STEP_ATR * atr
+
+        if pos.type == 0:                       # BUY -> profit is UP
+            price = tick.bid
+            if price - entry < TRAIL_START_ATR * atr:
+                continue                        # not enough profit yet
+            new_sl = price - TRAIL_SL_ATR_MULT * atr
+            if TRAIL_BREAKEVEN:
+                new_sl = max(new_sl, entry)     # never below break-even
+            new_sl = _enforce_stops(info, "BUY", price, new_sl)
+            new_tp = price + TRAIL_TP_ATR_MULT * atr
+            sl_ok = new_sl > cur_sl + step      # only toward profit (up)
+            tp_ok = new_tp > cur_tp + step      # push target further up
+            if sl_ok or tp_ok:
+                final_sl = new_sl if sl_ok else cur_sl
+                final_tp = new_tp if tp_ok else cur_tp
+                if _modify_sltp(pos, final_sl, final_tp):
+                    _push_log(f"[TRAIL] {sym} BUY  SL->{final_sl:.5f} TP->{final_tp:.5f}")
+
+        else:                                   # SELL -> profit is DOWN
+            price = tick.ask
+            if entry - price < TRAIL_START_ATR * atr:
+                continue
+            new_sl = price + TRAIL_SL_ATR_MULT * atr
+            if TRAIL_BREAKEVEN:
+                new_sl = min(new_sl, entry)     # never above break-even
+            new_sl = _enforce_stops(info, "SELL", price, new_sl)
+            new_tp = price - TRAIL_TP_ATR_MULT * atr
+            sl_ok = (cur_sl == 0.0) or (new_sl < cur_sl - step)   # only toward profit (down)
+            tp_ok = (cur_tp == 0.0) or (new_tp < cur_tp - step)   # push target further down
+            if sl_ok or tp_ok:
+                final_sl = new_sl if sl_ok else cur_sl
+                final_tp = new_tp if tp_ok else cur_tp
+                if _modify_sltp(pos, final_sl, final_tp):
+                    _push_log(f"[TRAIL] {sym} SELL SL->{final_sl:.5f} TP->{final_tp:.5f}")
+
+
 def manage_exits():
-    """Rule-based mean-reversion exit (SMA5 cross) + max-hold for each position.
-    The ATR protective SL is on the broker order; this handles the profit-side
-    and time-based exits the way the strategy is designed."""
+    """Rule-based mean-reversion exit (SMA5 cross) + max-hold for each position."""
     for pos in _our_positions():
         sym = pos.symbol
-        comment = getattr(pos, "comment", "") or ""
-        tf_name = "H1"
-        for t in TIMEFRAMES:
-            if comment.endswith(t):
-                tf_name = t
-                break
+        tf_name = _tf_of_position(pos)
         tf_code = TIMEFRAMES.get(tf_name, mt5.TIMEFRAME_H1)
         df = get_candles(sym, tf_code, count=SMA_TREND + 20)
         if df is None or len(df) < SMA_EXIT + 2:
@@ -694,6 +790,7 @@ def scan_all_symbols(scan_num, risk_percent):
 
     _push_log(f"[SCAN #{scan_num}] signals={signals} watch={watch} ({elapsed:.2f}s)")
     manage_exits()
+    manage_trailing()
 
 
 # ---------------------------------------------------------------------------
@@ -723,7 +820,7 @@ def run_startup_test_trade():
             "action": mt5.TRADE_ACTION_DEAL, "symbol": TEST_SYM,
             "volume": float(lot), "type": mt5.ORDER_TYPE_BUY,
             "price": _round_price(info, price), "sl": sl, "tp": tp,
-            "deviation": 30, "magic": TEST_MAGIC, "comment": "TEST_v4",
+            "deviation": 30, "magic": TEST_MAGIC, "comment": "TEST_v5",
             "type_time": mt5.ORDER_TIME_GTC, "type_filling": fmode,
         })
         last_result = r
@@ -755,7 +852,7 @@ def run_startup_test_trade():
                 "volume": pos.volume, "type": mt5.ORDER_TYPE_SELL,
                 "position": pos.ticket,
                 "price": _round_price(cinf, ctick.bid) if cinf else ctick.bid,
-                "deviation": 30, "magic": TEST_MAGIC, "comment": "TEST_close_v4",
+                "deviation": 30, "magic": TEST_MAGIC, "comment": "TEST_close_v5",
                 "type_time": mt5.ORDER_TIME_GTC, "type_filling": fmode,
             })
             if cr and cr.retcode == mt5.TRADE_RETCODE_DONE:
@@ -826,7 +923,7 @@ class DashboardGUI:
         from tkinter import ttk, scrolledtext
         self.tk = tk; self.ttk = ttk; self.ST = scrolledtext.ScrolledText
         self.root = tk.Tk()
-        self.root.title("anony_v4 - RSI(2) Mean-Reversion Bot")
+        self.root.title("anony_v5 - RSI(2) Mean-Reversion + Trailing")
         self.root.geometry("1300x800")
         self.root.minsize(1100, 700)
         self.root.configure(bg=self.BG)
@@ -887,7 +984,7 @@ class DashboardGUI:
         tk = self.tk
         topbar = tk.Frame(self.root, bg=self.PANEL_HI, height=58)
         topbar.pack(fill="x")
-        tk.Label(topbar, text="  anony_v4  RSI(2) MEAN-REVERSION  @codex_here ",
+        tk.Label(topbar, text="  anony_v5  RSI(2) MEAN-REVERSION + TRAILING  @codex_here ",
                  bg=self.PANEL_HI, fg=self.GOLD,
                  font=("Consolas", 14, "bold")).pack(side="left", padx=14)
         self.lbl_conn = tk.Label(topbar, text=" connecting... ", bg=self.PANEL_HI,
@@ -916,11 +1013,12 @@ class DashboardGUI:
             ("SELL", f"RSI2 > {RSI_SELL} & price < SMA{SMA_TREND}"),
             ("Exit", f"cross SMA({SMA_EXIT}) / {MAX_HOLD_BARS} bars"),
             ("SL", f"ATR({ATR_PERIOD}) x {ATR_SL_MULT} protective"),
+            ("Trail", f"SL x{TRAIL_SL_ATR_MULT} / TP x{TRAIL_TP_ATR_MULT} ATR (profit only)"),
             ("Risk", f"{RISK_PERCENT}% balance / trade"),
             ("DailyLim", f"-{DAILY_MAX_LOSS_PC}% balance -> stop"),
             ("Symbols", f"{len(SYMBOLS)} x {', '.join(TIMEFRAMES.keys())}"),
             ("Scan", f"every {SCAN_INTERVAL}s, {SCAN_WORKERS} workers"),
-            ("Best", "USDJPY USDCAD EURCHF CHFJPY"),
+            ("Pairs", "USDJPY USDCAD AUDUSD CADJPY"),
         ]
         for i, (k, v) in enumerate(rows):
             tk.Label(sb, text=k + ":", fg=self.DIM, bg=self.PANEL,
@@ -1022,7 +1120,7 @@ class DashboardGUI:
 
         foot = tk.Frame(self.root, bg=self.BG)
         foot.pack(fill="x", padx=10, pady=(0, 6))
-        tk.Label(foot, text="Made by @codex_here  -  v4 RSI(2) Mean-Reversion  "
+        tk.Label(foot, text="Made by @codex_here  -  v5 RSI(2) + profit-only trailing  "
                             "-  auto-detects MT5  -  no credentials stored",
                  bg=self.BG, fg=self.DIM, font=("Segoe UI", 8)).pack(side="left")
 
