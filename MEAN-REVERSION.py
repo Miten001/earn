@@ -913,9 +913,13 @@ def scanner_worker(risk, interval):
 #  GUI DASHBOARD
 # ---------------------------------------------------------------------------
 class DashboardGUI:
-    BG = "#0f1117"; PANEL = "#161a23"; PANEL_HI = "#1d2230"; BORDER = "#2a2f3e"
-    FG = "#e6e8ef"; DIM = "#8b91a3"; GREEN = "#22c55e"; RED = "#ef4444"
-    YELLOW = "#facc15"; BLUE = "#3b82f6"; MAGENTA = "#a855f7"; GOLD = "#fbbf24"
+    # ---- v5 modern palette (deep navy + indigo/cyan accents) ----
+    BG = "#0a0e17"; PANEL = "#121829"; PANEL_HI = "#1a2236"; BORDER = "#283350"
+    PANEL_ALT = "#161d30"   # alternating table row
+    LOG_BG = "#070a12"
+    FG = "#eef1f8"; DIM = "#8893ad"; GREEN = "#34d399"; RED = "#fb7185"
+    YELLOW = "#fbbf24"; BLUE = "#60a5fa"; MAGENTA = "#c084fc"; GOLD = "#fcd34d"
+    ACCENT = "#6366f1"; CYAN = "#22d3ee"
 
     def __init__(self, risk, interval):
         self.cfg = dict(risk=risk, interval=interval)
@@ -939,16 +943,19 @@ class DashboardGUI:
                              bg=bg or self.PANEL, font=font, **kw)
 
     def _section(self, parent, title, color=None):
+        color = color or self.ACCENT
         wrap = self.tk.Frame(parent, bg=self.BORDER)
         inner = self.tk.Frame(wrap, bg=self.PANEL)
         inner.pack(fill="both", expand=True, padx=1, pady=1)
         hdr = self.tk.Frame(inner, bg=self.PANEL_HI)
         hdr.pack(fill="x")
-        self._lbl(hdr, "  " + title, fg=color or self.GOLD,
+        # left accent bar
+        self.tk.Frame(hdr, bg=color, width=4, height=22).pack(side="left", fill="y")
+        self._lbl(hdr, "  " + title.upper(), fg=color,
                   font=("Segoe UI", 10, "bold"), bg=self.PANEL_HI,
-                  anchor="w").pack(side="left", pady=4)
+                  anchor="w").pack(side="left", pady=6)
         body = self.tk.Frame(inner, bg=self.PANEL)
-        body.pack(fill="both", expand=True, padx=10, pady=8)
+        body.pack(fill="both", expand=True, padx=12, pady=10)
         return wrap, body
 
     def _make_tree(self, parent, columns, headings, widths):
@@ -957,13 +964,14 @@ class DashboardGUI:
         try: style.theme_use("clam")
         except: pass
         style.configure("Tri.Treeview", background=self.PANEL, foreground=self.FG,
-                        fieldbackground=self.PANEL, borderwidth=0, rowheight=22,
+                        fieldbackground=self.PANEL, borderwidth=0, rowheight=25,
                         font=("Consolas", 9))
         style.configure("Tri.Treeview.Heading", background=self.PANEL_HI,
-                        foreground=self.GOLD, font=("Segoe UI", 9, "bold"),
-                        borderwidth=0)
-        style.map("Tri.Treeview", background=[("selected", self.PANEL_HI)],
-                  foreground=[("selected", self.GOLD)])
+                        foreground=self.CYAN, font=("Segoe UI", 9, "bold"),
+                        borderwidth=0, relief="flat", padding=(4, 5))
+        style.map("Tri.Treeview", background=[("selected", self.ACCENT)],
+                  foreground=[("selected", "#ffffff")])
+        style.map("Tri.Treeview.Heading", background=[("active", self.BORDER)])
         tree = ttk.Treeview(parent, columns=columns, show="headings",
                             style="Tri.Treeview", height=8)
         for c in columns:
@@ -978,24 +986,46 @@ class DashboardGUI:
         tree.tag_configure("win", foreground=self.GREEN)
         tree.tag_configure("loss", foreground=self.RED)
         tree.tag_configure("neutral", foreground=self.FG)
+        # zebra striping (background only -> coexists with colour tags)
+        tree.tag_configure("odd", background=self.PANEL_ALT)
+        tree.tag_configure("even", background=self.PANEL)
         return tree
+
+    @staticmethod
+    def _stripe(i):
+        return "odd" if i % 2 else "even"
 
     def _build_ui(self):
         tk = self.tk
-        topbar = tk.Frame(self.root, bg=self.PANEL_HI, height=58)
+        # thin accent strip on top
+        tk.Frame(self.root, bg=self.ACCENT, height=3).pack(fill="x")
+        topbar = tk.Frame(self.root, bg=self.PANEL_HI, height=64)
         topbar.pack(fill="x")
-        tk.Label(topbar, text="  anony_v5  RSI(2) MEAN-REVERSION + TRAILING  @codex_here ",
-                 bg=self.PANEL_HI, fg=self.GOLD,
-                 font=("Consolas", 14, "bold")).pack(side="left", padx=14)
-        self.lbl_conn = tk.Label(topbar, text=" connecting... ", bg=self.PANEL_HI,
-                                 fg=self.YELLOW, font=("Segoe UI", 10, "bold"))
-        self.lbl_conn.pack(side="left", padx=10)
-        self.lbl_acc = tk.Label(topbar, text="", bg=self.PANEL_HI, fg=self.FG,
-                                font=("Consolas", 10))
-        self.lbl_acc.pack(side="left", padx=10)
+        topbar.pack_propagate(False)
+        # logo block
+        logo = tk.Frame(topbar, bg=self.PANEL_HI)
+        logo.pack(side="left", padx=(18, 6))
+        tk.Label(logo, text="anony", bg=self.PANEL_HI, fg=self.FG,
+                 font=("Segoe UI", 17, "bold")).pack(side="left")
+        tk.Label(logo, text="v5", bg=self.PANEL_HI, fg=self.ACCENT,
+                 font=("Segoe UI", 17, "bold")).pack(side="left", padx=(2, 0))
+        tk.Label(topbar, text="RSI(2) MEAN-REVERSION  +  PROFIT TRAILING",
+                 bg=self.PANEL_HI, fg=self.DIM,
+                 font=("Segoe UI", 9, "bold")).pack(side="left", padx=6)
+        # connection status pill
+        pill = tk.Frame(topbar, bg=self.BORDER)
+        pill.pack(side="left", padx=16)
+        self.lbl_conn = tk.Label(pill, text="  \u25cf  CONNECTING  ",
+                                 bg=self.BORDER, fg=self.YELLOW,
+                                 font=("Segoe UI", 9, "bold"))
+        self.lbl_conn.pack(padx=2, pady=4)
+        # right side: clock + account chip
         self.lbl_clock = tk.Label(topbar, text="", bg=self.PANEL_HI, fg=self.DIM,
-                                  font=("Consolas", 10))
-        self.lbl_clock.pack(side="right", padx=14)
+                                  font=("Consolas", 11, "bold"))
+        self.lbl_clock.pack(side="right", padx=16)
+        self.lbl_acc = tk.Label(topbar, text="", bg=self.PANEL_HI, fg=self.CYAN,
+                                font=("Consolas", 10, "bold"))
+        self.lbl_acc.pack(side="right", padx=8)
 
         main = tk.Frame(self.root, bg=self.BG)
         main.pack(fill="both", expand=True, padx=10, pady=8)
@@ -1109,20 +1139,21 @@ class DashboardGUI:
                     "entry": 80, "sl": 80, "rsi": 50, "lot": 50, "pnl": 65,
                     "status": 60})
 
-        lw, lb = self._section(main, "ACTIVITY LOG", color=self.DIM)
+        lw, lb = self._section(main, "ACTIVITY LOG", color=self.CYAN)
         lw.grid(row=2, column=2, sticky="nsew", padx=4, pady=4)
-        self.log_text = self.ST(lb, bg="#0a0d14", fg=self.DIM,
+        self.log_text = self.ST(lb, bg=self.LOG_BG, fg=self.DIM,
                                 font=("Consolas", 9), wrap="word",
                                 insertbackground=self.FG, relief="flat",
                                 borderwidth=0, highlightthickness=0)
         self.log_text.pack(fill="both", expand=True)
         self.log_text.configure(state="disabled")
 
-        foot = tk.Frame(self.root, bg=self.BG)
-        foot.pack(fill="x", padx=10, pady=(0, 6))
-        tk.Label(foot, text="Made by @codex_here  -  v5 RSI(2) + profit-only trailing  "
-                            "-  auto-detects MT5  -  no credentials stored",
-                 bg=self.BG, fg=self.DIM, font=("Segoe UI", 8)).pack(side="left")
+        foot = tk.Frame(self.root, bg=self.PANEL_HI)
+        foot.pack(fill="x")
+        tk.Label(foot, text="  Made by @codex_here   \u2022   v5 RSI(2) + profit-only trailing"
+                            "   \u2022   auto-detects MT5   \u2022   no credentials stored",
+                 bg=self.PANEL_HI, fg=self.DIM,
+                 font=("Segoe UI", 8)).pack(side="left", pady=4)
 
     def _refresh(self):
         try: self._refresh_once()
@@ -1143,12 +1174,11 @@ class DashboardGUI:
             log_lines = list(SESSION["log_lines"])
 
         self.lbl_conn.config(
-            text="  CONNECTED   " if connected else "  CONNECTING...",
+            text="  \u25cf  CONNECTED  " if connected else "  \u25cf  CONNECTING  ",
             fg=self.GREEN if connected else self.YELLOW)
         if acc:
             self.lbl_acc.config(
-                text=f"  Acct {acc.login}  |  Bal ${acc.balance:,.2f}  "
-                     f"|  Equity ${acc.equity:,.2f}  |  {acc.server}")
+                text=f"#{acc.login}  \u2022  ${acc.balance:,.2f}  \u2022  {acc.server}")
             self.acc_labels["login"].config(text=str(acc.login))
             self.acc_labels["server"].config(text=acc.server)
             self.acc_labels["balance"].config(text=f"${acc.balance:,.2f}")
@@ -1182,26 +1212,26 @@ class DashboardGUI:
             fg=self.GREEN if unreal >= 0 else self.RED)
 
         self.watch_tree.delete(*self.watch_tree.get_children())
-        for a in sorted(watch, key=lambda x: abs(x["rsi"] - 50), reverse=True)[:30]:
+        for i, a in enumerate(sorted(watch, key=lambda x: abs(x["rsi"] - 50), reverse=True)[:30]):
             tag = "buy" if a["hint"] == "BUY" else "sell"
-            self.watch_tree.insert("", "end", tags=(tag,), values=(
+            self.watch_tree.insert("", "end", tags=(tag, self._stripe(i)), values=(
                 a["symbol"], a["tf"], a["trend"], f"{a['rsi']:.1f}", a["hint"]))
 
         self.pos_tree.delete(*self.pos_tree.get_children())
-        for p in positions:
+        for i, p in enumerate(positions):
             tag = "win" if p["profit"] >= 0 else "loss"
-            self.pos_tree.insert("", "end", tags=(tag,), values=(
+            self.pos_tree.insert("", "end", tags=(tag, self._stripe(i)), values=(
                 p["symbol"], p["side"], f"{p['lot']:.2f}", f"{p['entry']:.5f}",
                 f"{p['now']:.5f}", f"{p['sl']:.5f}", f"{p['rr']:+.2f}",
                 self._money(p["profit"])))
 
         rows = _read_recent_journal_rows(20)
         self.journal_tree.delete(*self.journal_tree.get_children())
-        for row in rows[::-1]:
+        for i, row in enumerate(rows[::-1]):
             try: pnl_v = float(row.get("Profit_Loss", 0) or 0)
             except: pnl_v = 0
             tag = "win" if pnl_v > 0 else ("loss" if pnl_v < 0 else "neutral")
-            self.journal_tree.insert("", "end", tags=(tag,), values=(
+            self.journal_tree.insert("", "end", tags=(tag, self._stripe(i)), values=(
                 row.get("Date", ""), row.get("Time", ""), row.get("Symbol", ""),
                 row.get("Timeframe", ""), row.get("Direction", ""),
                 row.get("Entry", ""), row.get("SL", ""), row.get("RSI2", ""),
