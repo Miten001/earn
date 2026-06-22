@@ -1,0 +1,269 @@
+
+[EURUSD m15] 230400 bars  (2012-11-14 15:00:00  ->  2022-03-04 23:45:00)
+  [EURUSD/m15] computing ATR + HTF trend + PDH/PDL ...
+  [EURUSD/m15] running simulation on 230400 bars ...
+  done 3.3s  trades=483  WR=33.33%  PF=0.74  net=-1.58%
+
+[EURUSD m30] 115200 bars  (2012-11-15 06:30:00  ->  2022-03-04 23:30:00)
+  [EURUSD/m30] computing ATR + HTF trend + PDH/PDL ...
+  [EURUSD/m30] running simulation on 115200 bars ...
+  done 1.6s  trades=225  WR=29.78%  PF=0.79  net=-0.85%
+
+[EURUSD h1] 57600 bars  (2012-11-16 00:00:00  ->  2022-03-04 23:00:00)
+  [EURUSD/h1] computing ATR + HTF trend + PDH/PDL ...
+  [EURUSD/h1] running simulation on 57600 bars ...
+  done 0.8s  trades=0  WR=0.00%  PF=0.00  net=0.00%
+
+[GBPUSD m15] 230400 bars  (2012-11-14 20:15:00  ->  2022-03-04 23:45:00)
+  [GBPUSD/m15] computing ATR + HTF trend + PDH/PDL ...
+  [GBPUSD/m15] running simulation on 230400 bars ...
+  done 2.9s  trades=469  WR=33.69%  PF=0.65  net=-2.32%
+
+[GBPUSD m30] 115200 bars  (2012-11-15 11:00:00  ->  2022-03-04 23:30:00)
+  [GBPUSD/m30] computing ATR + HTF trend + PDH/PDL ...
+  [GBPUSD/m30] running simulation on 115200 bars ...
+  done 1.5s  trades=223  WR=34.98%  PF=0.87  net=-0.51%
+
+[GBPUSD h1] 57600 bars  (2012-11-16 05:00:00  ->  2022-03-04 23:00:00)
+  [GBPUSD/h1] computing ATR + HTF trend + PDH/PDL ...
+  [GBPUSD/h1] running simulation on 57600 bars ...
+  done 0.7s  trades=0  WR=0.00%  PF=0.00  net=0.00%
+
+[USDJPY m15] 230400 bars  (2012-11-14 21:15:00  ->  2022-03-04 23:45:00)
+  [USDJPY/m15] computing ATR + HTF trend + PDH/PDL ...
+  [USDJPY/m15] running simulation on 230400 bars ...
+  done 2.9s  trades=430  WR=35.12%  PF=0.75  net=-1.22%
+
+[USDJPY m30] 115200 bars  (2012-11-15 14:30:00  ->  2022-03-04 23:30:00)
+  [USDJPY/m30] computing ATR + HTF trend + PDH/PDL ...
+  [USDJPY/m30] running simulation on 115200 bars ...
+  done 1.5s  trades=207  WR=36.23%  PF=0.84  net=-0.51%
+
+[USDJPY h1] 57600 bars  (2012-11-16 12:00:00  ->  2022-03-04 23:00:00)
+  [USDJPY/h1] computing ATR + HTF trend + PDH/PDL ...
+  [USDJPY/h1] running simulation on 57600 bars ...
+  done 0.8s  trades=0  WR=0.00%  PF=0.00  net=0.00%
+
+[GBPJPY m15] 230400 bars  (2012-11-14 04:30:00  ->  2022-03-04 23:45:00)
+  [GBPJPY/m15] computing ATR + HTF trend + PDH/PDL ...
+  [GBPJPY/m15] running simulation on 230400 bars ...
+  done 2.8s  trades=439  WR=34.17%  PF=0.82  net=-1.35%
+
+[GBPJPY m30] 115200 bars  (2012-11-14 20:30:00  ->  2022-03-04 23:30:00)
+  [GBPJPY/m30] computing ATR + HTF trend + PDH/PDL ...
+  [GBPJPY/m30] running simulation on 115200 bars ...
+  done 1.5s  trades=205  WR=33.17%  PF=0.86  net=-0.67%
+
+[GBPJPY h1] 57600 bars  (2012-11-15 15:00:00  ->  2022-03-04 23:00:00)
+  [GBPJPY/h1] computing ATR + HTF trend + PDH/PDL ...
+  [GBPJPY/h1] running simulation on 57600 bars ...
+  done 0.7s  trades=0  WR=0.00%  PF=0.00  net=0.00%
+
+[AUDUSD m15] 230400 bars  (2012-11-14 23:00:00  ->  2022-03-04 23:45:00)
+  [AUDUSD/m15] computing ATR + HTF trend + PDH/PDL ...
+  [AUDUSD/m15] running simulation on 230400 bars ...
+  done 2.6s  trades=473  WR=30.44%  PF=0.62  net=-2.98%
+
+[AUDUSD m30] 115200 bars  (2012-11-15 14:00:00  ->  2022-03-04 23:30:00)
+  [AUDUSD/m30] computing ATR + HTF trend + PDH/PDL ...
+  [AUDUSD/m30] running simulation on 115200 bars ...
+  done 1.3s  trades=221  WR=31.67%  PF=0.75  net=-1.17%
+
+[AUDUSD h1] 57600 bars  (2012-11-16 10:00:00  ->  2022-03-04 23:00:00)
+  [AUDUSD/h1] computing ATR + HTF trend + PDH/PDL ...
+  [AUDUSD/h1] running simulation on 57600 bars ...
+  done 0.7s  trades=0  WR=0.00%  PF=0.00  net=0.00%
+
+[USDCAD m15] 230400 bars  (2012-11-14 20:45:00  ->  2022-03-04 23:45:00)
+  [USDCAD/m15] computing ATR + HTF trend + PDH/PDL ...
+  [USDCAD/m15] running simulation on 230400 bars ...
+  done 2.6s  trades=460  WR=32.83%  PF=0.60  net=-2.02%
+
+[USDCAD m30] 115200 bars  (2012-11-15 17:30:00  ->  2022-03-04 23:30:00)
+  [USDCAD/m30] computing ATR + HTF trend + PDH/PDL ...
+  [USDCAD/m30] running simulation on 115200 bars ...
+  done 1.5s  trades=221  WR=26.70%  PF=0.51  net=-1.75%
+
+[USDCAD h1] 57600 bars  (2012-11-16 18:00:00  ->  2022-03-04 23:00:00)
+  [USDCAD/h1] computing ATR + HTF trend + PDH/PDL ...
+  [USDCAD/h1] running simulation on 57600 bars ...
+  done 0.7s  trades=0  WR=0.00%  PF=0.00  net=0.00%
+
+[USDCHF m15] 230400 bars  (2012-11-14 04:00:00  ->  2022-03-04 23:45:00)
+  [USDCHF/m15] computing ATR + HTF trend + PDH/PDL ...
+  [USDCHF/m15] running simulation on 230400 bars ...
+  done 2.7s  trades=483  WR=37.68%  PF=0.90  net=-0.58%
+
+[USDCHF m30] 115200 bars  (2012-11-14 18:00:00  ->  2022-03-04 23:30:00)
+  [USDCHF/m30] computing ATR + HTF trend + PDH/PDL ...
+  [USDCHF/m30] running simulation on 115200 bars ...
+  done 1.4s  trades=229  WR=32.75%  PF=0.86  net=-0.58%
+
+[USDCHF h1] 57600 bars  (2012-11-15 14:00:00  ->  2022-03-04 23:00:00)
+  [USDCHF/h1] computing ATR + HTF trend + PDH/PDL ...
+  [USDCHF/h1] running simulation on 57600 bars ...
+  done 0.7s  trades=0  WR=0.00%  PF=0.00  net=0.00%
+
+[EURJPY m15] 230400 bars  (2012-11-14 14:00:00  ->  2022-03-04 23:45:00)
+  [EURJPY/m15] computing ATR + HTF trend + PDH/PDL ...
+  [EURJPY/m15] running simulation on 230400 bars ...
+  done 2.9s  trades=448  WR=34.82%  PF=0.81  net=-1.22%
+
+[EURJPY m30] 115200 bars  (2012-11-15 07:30:00  ->  2022-03-04 23:30:00)
+  [EURJPY/m30] computing ATR + HTF trend + PDH/PDL ...
+  [EURJPY/m30] running simulation on 115200 bars ...
+  done 1.6s  trades=231  WR=37.66%  PF=0.96  net=-0.16%
+
+[EURJPY h1] 57600 bars  (2012-11-16 01:00:00  ->  2022-03-04 23:00:00)
+  [EURJPY/h1] computing ATR + HTF trend + PDH/PDL ...
+  [EURJPY/h1] running simulation on 57600 bars ...
+  done 0.8s  trades=0  WR=0.00%  PF=0.00  net=0.00%
+
+[XAUUSD m15] 230400 bars  (2012-05-15 08:00:00  ->  2022-03-04 23:45:00)
+  [XAUUSD/m15] computing ATR + HTF trend + PDH/PDL ...
+  [XAUUSD/m15] running simulation on 230400 bars ...
+  done 3.1s  trades=452  WR=33.41%  PF=0.75  net=-2.04%
+
+[XAUUSD m30] 115200 bars  (2012-05-16 02:00:00  ->  2022-03-04 23:30:00)
+  [XAUUSD/m30] computing ATR + HTF trend + PDH/PDL ...
+  [XAUUSD/m30] running simulation on 115200 bars ...
+  done 1.6s  trades=230  WR=32.17%  PF=0.77  net=-1.31%
+
+[XAUUSD h1] 57600 bars  (2012-05-17 08:00:00  ->  2022-03-04 23:00:00)
+  [XAUUSD/h1] computing ATR + HTF trend + PDH/PDL ...
+  [XAUUSD/h1] running simulation on 57600 bars ...
+  done 0.8s  trades=0  WR=0.00%  PF=0.00  net=0.00%
+
+
+>>> Loading BTC 1-min once, resampling to multiple TFs ...
+  loaded 6846600 1-min bars in 19.5s
+
+[BTCUSD m5] 1369321 bars  (2012-01-01 10:00:00  ->  2025-01-07 00:00:00)
+  [BTCUSD/m5] computing ATR + HTF trend + PDH/PDL ...
+  [BTCUSD/m5] running simulation on 1369321 bars ...
+  done 13.4s  trades=1415  WR=29.89%  PF=0.88  net=-6.64%
+
+[BTCUSD m15] 456441 bars  (2012-01-01 10:00:00  ->  2025-01-07 00:00:00)
+  [BTCUSD/m15] computing ATR + HTF trend + PDH/PDL ...
+  [BTCUSD/m15] running simulation on 456441 bars ...
+  done 11.8s  trades=836  WR=33.85%  PF=0.96  net=-1.98%
+
+[BTCUSD m30] 228221 bars  (2012-01-01 10:00:00  ->  2025-01-07 00:00:00)
+  [BTCUSD/m30] computing ATR + HTF trend + PDH/PDL ...
+  [BTCUSD/m30] running simulation on 228221 bars ...
+  done 8.8s  trades=455  WR=35.60%  PF=1.06  net=2.48%
+
+[BTCUSD h1] 114111 bars  (2012-01-01 10:00:00  ->  2025-01-07 00:00:00)
+  [BTCUSD/h1] computing ATR + HTF trend + PDH/PDL ...
+  [BTCUSD/h1] running simulation on 114111 bars ...
+  done 8.3s  trades=0  WR=0.00%  PF=0.00  net=0.00%
+
+
+>>> Loading ETH 1-min once, resampling to multiple TFs ...
+  loaded 2046662 1-min bars in 5.8s
+
+[ETHUSD m5] 470656 bars  (2016-03-09 16:00:00  ->  2021-03-20 21:05:00)
+  [ETHUSD/m5] computing ATR + HTF trend + PDH/PDL ...
+  [ETHUSD/m5] running simulation on 470656 bars ...
+  done 4.7s  trades=438  WR=34.47%  PF=0.86  net=-3.24%
+
+[ETHUSD m15] 164224 bars  (2016-03-09 16:00:00  ->  2021-03-20 21:00:00)
+  [ETHUSD/m15] computing ATR + HTF trend + PDH/PDL ...
+  [ETHUSD/m15] running simulation on 164224 bars ...
+  done 3.5s  trades=276  WR=37.32%  PF=1.10  net=2.24%
+
+[ETHUSD m30] 83654 bars  (2016-03-09 16:00:00  ->  2021-03-20 21:00:00)
+  [ETHUSD/m30] computing ATR + HTF trend + PDH/PDL ...
+  [ETHUSD/m30] running simulation on 83654 bars ...
+  done 2.8s  trades=172  WR=35.47%  PF=1.18  net=4.00%
+
+[ETHUSD h1] 42229 bars  (2016-03-09 16:00:00  ->  2021-03-20 21:00:00)
+  [ETHUSD/h1] computing ATR + HTF trend + PDH/PDL ...
+  [ETHUSD/h1] running simulation on 42229 bars ...
+  done 2.6s  trades=0  WR=0.00%  PF=0.00  net=0.00%
+
+======================================================================
+  MULTI-TIMEFRAME RESULTS  (v3 strategy: true 1:2 RR)
+======================================================================
+
+  TRADES
+  Pair              m5       m15       m30        h1
+  --------------------------------------------------
+  EURUSD             -       483       225         -
+  GBPUSD             -       469       223         -
+  USDJPY             -       430       207         -
+  GBPJPY             -       439       205         -
+  AUDUSD             -       473       221         -
+  USDCAD             -       460       221         -
+  USDCHF             -       483       229         -
+  EURJPY             -       448       231         -
+  XAUUSD             -       452       230         -
+  BTCUSD          1415       836       455         -
+  ETHUSD           438       276       172         -
+
+  WINRATE %
+  Pair              m5       m15       m30        h1
+  --------------------------------------------------
+  EURUSD             -     33.33     29.78         -
+  GBPUSD             -     33.69     34.98         -
+  USDJPY             -     35.12     36.23         -
+  GBPJPY             -     34.17     33.17         -
+  AUDUSD             -     30.44     31.67         -
+  USDCAD             -     32.83     26.70         -
+  USDCHF             -     37.68     32.75         -
+  EURJPY             -     34.82     37.66         -
+  XAUUSD             -     33.41     32.17         -
+  BTCUSD         29.89     33.85     35.60         -
+  ETHUSD         34.47     37.32     35.47         -
+
+  PROFIT FACTOR
+  Pair              m5       m15       m30        h1
+  --------------------------------------------------
+  EURUSD             -      0.74      0.79         -
+  GBPUSD             -      0.65      0.87         -
+  USDJPY             -      0.75      0.84         -
+  GBPJPY             -      0.82      0.86         -
+  AUDUSD             -      0.62      0.75         -
+  USDCAD             -      0.60      0.51         -
+  USDCHF             -      0.90      0.86         -
+  EURJPY             -      0.81      0.96         -
+  XAUUSD             -      0.75      0.77         -
+  BTCUSD          0.88      0.96      1.06         -
+  ETHUSD          0.86      1.10      1.18         -
+
+  NET %
+  Pair              m5       m15       m30        h1
+  --------------------------------------------------
+  EURUSD             -     -1.58     -0.85         -
+  GBPUSD             -     -2.32     -0.51         -
+  USDJPY             -     -1.22     -0.51         -
+  GBPJPY             -     -1.35     -0.67         -
+  AUDUSD             -     -2.98     -1.17         -
+  USDCAD             -     -2.02     -1.75         -
+  USDCHF             -     -0.58     -0.58         -
+  EURJPY             -     -1.22     -0.16         -
+  XAUUSD             -     -2.04     -1.31         -
+  BTCUSD         -6.64     -1.98      2.48         -
+  ETHUSD         -3.24      2.24      4.00         -
+
+  MAX DD %
+  Pair              m5       m15       m30        h1
+  --------------------------------------------------
+  EURUSD             -     -1.82     -1.63         -
+  GBPUSD             -     -2.41     -0.76         -
+  USDJPY             -     -1.31     -0.88         -
+  GBPJPY             -     -1.79     -1.06         -
+  AUDUSD             -     -3.09     -1.59         -
+  USDCAD             -     -2.19     -1.80         -
+  USDCHF             -     -1.12     -1.31         -
+  EURJPY             -     -1.90     -0.66         -
+  XAUUSD             -     -2.22     -2.18         -
+  BTCUSD        -11.10     -4.41     -4.14         -
+  ETHUSD         -6.23     -3.37     -2.97         -
+
+======================================================================
+  PROFITABLE COMBOS  (PF > 1.0 and >= 30 trades)
+======================================================================
+  ETHUSD     m30    trades=  172  WR=35.47%  PF= 1.18  net= +4.00%  DD= -2.97%
+  ETHUSD     m15    trades=  276  WR=37.32%  PF= 1.10  net= +2.24%  DD= -3.37%
+  BTCUSD     m30    trades=  455  WR=35.60%  PF= 1.06  net= +2.48%  DD= -4.14%

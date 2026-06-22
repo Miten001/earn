@@ -1,0 +1,210 @@
+
+[EURUSD] 230400 m15 bars  (2012-11-14 15:00:00  ->  2022-03-04 23:45:00)
+  [EURUSD] computing ATR + HTF trend ...
+  [EURUSD] running simulation on 230400 bars ...
+
+================================================================
+  EURUSD
+================================================================
+  Total Trades         : 493
+  Wins / Losses        : 259 / 234
+  Winrate              : 52.54%
+  Profit Factor        : 0.46
+  Net P&L (relative)   : -2297.07  (-2.30%)
+  Avg Win / Avg Loss   : 7.64 / -18.27
+  Best / Worst Trade   : 35.70 / -106.85
+  Max Drawdown         : -2.38%
+  [EURUSD] done in 2.3s
+
+[GBPUSD] 230400 m15 bars  (2012-11-14 20:15:00  ->  2022-03-04 23:45:00)
+  [GBPUSD] computing ATR + HTF trend ...
+  [GBPUSD] running simulation on 230400 bars ...
+
+================================================================
+  GBPUSD
+================================================================
+  Total Trades         : 477
+  Wins / Losses        : 269 / 208
+  Winrate              : 56.39%
+  Profit Factor        : 0.57
+  Net P&L (relative)   : -1805.55  (-1.81%)
+  Avg Win / Avg Loss   : 8.84 / -20.12
+  Best / Worst Trade   : 29.47 / -62.51
+  Max Drawdown         : -1.85%
+  [GBPUSD] done in 2.3s
+
+[USDJPY] 230400 m15 bars  (2012-11-14 21:15:00  ->  2022-03-04 23:45:00)
+  [USDJPY] computing ATR + HTF trend ...
+  [USDJPY] running simulation on 230400 bars ...
+
+================================================================
+  USDJPY
+================================================================
+  Total Trades         : 434
+  Wins / Losses        : 228 / 206
+  Winrate              : 52.53%
+  Profit Factor        : 0.56
+  Net P&L (relative)   : -1552.29  (-1.55%)
+  Avg Win / Avg Loss   : 8.53 / -16.98
+  Best / Worst Trade   : 52.50 / -44.88
+  Max Drawdown         : -1.58%
+  [USDJPY] done in 2.2s
+
+[GBPJPY] 230400 m15 bars  (2012-11-14 04:30:00  ->  2022-03-04 23:45:00)
+  [GBPJPY] computing ATR + HTF trend ...
+  [GBPJPY] running simulation on 230400 bars ...
+
+================================================================
+  GBPJPY
+================================================================
+  Total Trades         : 449
+  Wins / Losses        : 250 / 199
+  Winrate              : 55.68%
+  Profit Factor        : 0.74
+  Net P&L (relative)   : -1259.10  (-1.26%)
+  Avg Win / Avg Loss   : 14.34 / -24.34
+  Best / Worst Trade   : 60.72 / -62.81
+  Max Drawdown         : -1.41%
+  [GBPJPY] done in 2.2s
+
+[AUDUSD] 230400 m15 bars  (2012-11-14 23:00:00  ->  2022-03-04 23:45:00)
+  [AUDUSD] computing ATR + HTF trend ...
+  [AUDUSD] running simulation on 230400 bars ...
+
+================================================================
+  AUDUSD
+================================================================
+  Total Trades         : 478
+  Wins / Losses        : 239 / 239
+  Winrate              : 50.00%
+  Profit Factor        : 0.60
+  Net P&L (relative)   : -2196.65  (-2.20%)
+  Avg Win / Avg Loss   : 14.06 / -23.25
+  Best / Worst Trade   : 71.70 / -74.60
+  Max Drawdown         : -2.22%
+  [AUDUSD] done in 2.2s
+
+[USDCAD] 230400 m15 bars  (2012-11-14 20:45:00  ->  2022-03-04 23:45:00)
+  [USDCAD] computing ATR + HTF trend ...
+  [USDCAD] running simulation on 230400 bars ...
+
+================================================================
+  USDCAD
+================================================================
+  Total Trades         : 461
+  Wins / Losses        : 254 / 207
+  Winrate              : 55.10%
+  Profit Factor        : 0.46
+  Net P&L (relative)   : -1786.36  (-1.79%)
+  Avg Win / Avg Loss   : 5.92 / -15.89
+  Best / Worst Trade   : 16.55 / -38.54
+  Max Drawdown         : -1.81%
+  [USDCAD] done in 2.3s
+
+[USDCHF] 230400 m15 bars  (2012-11-14 04:00:00  ->  2022-03-04 23:45:00)
+  [USDCHF] computing ATR + HTF trend ...
+  [USDCHF] running simulation on 230400 bars ...
+
+================================================================
+  USDCHF
+================================================================
+  Total Trades         : 487
+  Wins / Losses        : 286 / 201
+  Winrate              : 58.73%
+  Profit Factor        : 0.64
+  Net P&L (relative)   : -1312.14  (-1.31%)
+  Avg Win / Avg Loss   : 8.20 / -18.19
+  Best / Worst Trade   : 44.80 / -46.75
+  Max Drawdown         : -1.37%
+  [USDCHF] done in 2.2s
+
+[EURJPY] 230400 m15 bars  (2012-11-14 14:00:00  ->  2022-03-04 23:45:00)
+  [EURJPY] computing ATR + HTF trend ...
+  [EURJPY] running simulation on 230400 bars ...
+
+================================================================
+  EURJPY
+================================================================
+  Total Trades         : 455
+  Wins / Losses        : 240 / 215
+  Winrate              : 52.75%
+  Profit Factor        : 0.58
+  Net P&L (relative)   : -1961.43  (-1.96%)
+  Avg Win / Avg Loss   : 11.34 / -21.78
+  Best / Worst Trade   : 41.85 / -66.55
+  Max Drawdown         : -2.08%
+  [EURJPY] done in 2.3s
+
+[XAUUSD] 230400 m15 bars  (2012-05-15 08:00:00  ->  2022-03-04 23:45:00)
+  [XAUUSD] computing ATR + HTF trend ...
+  [XAUUSD] running simulation on 230400 bars ...
+
+================================================================
+  XAUUSD
+================================================================
+  Total Trades         : 453
+  Wins / Losses        : 235 / 218
+  Winrate              : 51.88%
+  Profit Factor        : 0.69
+  Net P&L (relative)   : -1766.78  (-1.77%)
+  Avg Win / Avg Loss   : 16.65 / -26.05
+  Best / Worst Trade   : 85.33 / -75.68
+  Max Drawdown         : -1.87%
+  [XAUUSD] done in 2.3s
+
+[BTCUSD] loading 1min gz file (large) ...
+[BTCUSD] 6846600 1-min bars; resampling to 15m ...
+[BTCUSD] 456441 15m bars  (2012-01-01 10:00:00  ->  2025-01-07 00:00:00)
+  [BTCUSD] computing ATR + HTF trend ...
+  [BTCUSD] running simulation on 456441 bars ...
+
+================================================================
+  BTCUSD
+================================================================
+  Total Trades         : 847
+  Wins / Losses        : 406 / 441
+  Winrate              : 47.93%
+  Profit Factor        : 0.87
+  Net P&L (relative)   : -5131.49  (-5.13%)
+  Avg Win / Avg Loss   : 84.20 / -89.15
+  Best / Worst Trade   : 585.38 / -1505.41
+  Max Drawdown         : -5.99%
+  [BTCUSD] done in 24.1s
+
+[ETHUSD] loading chunked 1min data ...
+[ETHUSD] 2046662 1-min bars; resampling to 15m ...
+[ETHUSD] 164224 15m bars  (2016-03-09 16:00:00  ->  2021-03-20 21:00:00)
+  [ETHUSD] computing ATR + HTF trend ...
+  [ETHUSD] running simulation on 164224 bars ...
+
+================================================================
+  ETHUSD
+================================================================
+  Total Trades         : 279
+  Wins / Losses        : 153 / 126
+  Winrate              : 54.84%
+  Profit Factor        : 1.18
+  Net P&L (relative)   : 2976.15  (2.98%)
+  Avg Win / Avg Loss   : 129.91 / -134.13
+  Best / Worst Trade   : 922.50 / -1078.70
+  Max Drawdown         : -1.70%
+  [ETHUSD] done in 7.4s
+
+================================================================
+  FINAL SUMMARY  (all pairs, RR 1:2, max 1 trade/day)
+================================================================
+  Symbol     Trades  Wins  Loss   WinR%     PF     Net%   MaxDD%
+  ------------------------------------------------------------
+  USDCHF        487   286   201   58.73   0.64    -1.31    -1.37
+  GBPUSD        477   269   208   56.39   0.57    -1.81    -1.85
+  GBPJPY        449   250   199   55.68   0.74    -1.26    -1.41
+  USDCAD        461   254   207   55.10   0.46    -1.79    -1.81
+  ETHUSD        279   153   126   54.84   1.18     2.98    -1.70
+  EURJPY        455   240   215   52.75   0.58    -1.96    -2.08
+  EURUSD        493   259   234   52.54   0.46    -2.30    -2.38
+  USDJPY        434   228   206   52.53   0.56    -1.55    -1.58
+  XAUUSD        453   235   218   51.88   0.69    -1.77    -1.87
+  AUDUSD        478   239   239   50.00   0.60    -2.20    -2.22
+  BTCUSD        847   406   441   47.93   0.87    -5.13    -5.99
+
+  AGGREGATE: 5313 trades, 53.06% combined winrate
