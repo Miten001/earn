@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-24x7 Monero (XMR) CPU Miner Launcher  —  Terminal + Browser GUI
-================================================================
-- XMRig (open source) ko auto-download karta hai (Linux / Windows / macOS)
-- Miner ko 24 hour chalata hai; crash/exit ho to auto-restart
-- Terminal me live hashrate, accepted shares, uptime dikhata hai
-- Browser GUI dashboard: http://localhost:8787  (start/stop, live stats, log)
+24x7 Multi-Miner Launcher  —  Terminal + Browser GUI
+=====================================================
+Ek dashboard se kai miners / kai coins ek saath, 24 hour, auto-restart ke saath.
+
+Supported miners (sab auto-download):
+  xmrig      - CPU  : Monero (XMR) RandomX            [open source]
+  srbminer   - CPU+GPU: 70+ algos (RandomX, KawPow, Autolykos2, GhostRider, ...)
+  lolminer   - GPU  : Ergo, Kaspa-family, Ravencoin, Flux, ...  (AMD/NVIDIA)
 
 Usage:
-    python3 miner.py                  # terminal + GUI dono
-    python3 miner.py --no-gui         # sirf terminal
-    python3 miner.py --wallet <XMR_ADDRESS> --pool pool.supportxmr.com:443 --threads 2
-
-Config file: miner/config.json (pehli baar run pe ban jaata hai, wahan wallet daal do)
+    python3 miner.py                 # terminal + GUI (http://localhost:8787)
+    python3 miner.py --no-gui        # sirf terminal
+Config: miner/config.json  (pehli baar run pe ban jaata hai)
 """
 import argparse, json, os, platform, shutil, subprocess, sys, tarfile, threading, time, urllib.request, zipfile, re
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -20,18 +20,67 @@ from collections import deque
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(HERE, "config.json")
-BIN_DIR = os.path.join(HERE, "xmrig")
-XMRIG_VERSION = "6.22.2"
+BIN_DIR = os.path.join(HERE, "bin")
+IS_WIN = platform.system() == "Windows"
+
+# ---------------------------------------------------------------- miner definitions
+XMRIG_V, SRB_V, LOL_V = "6.22.2", "2.9.7", "1.98"
+MINERS = {
+    "xmrig": {
+        "exe": "xmrig.exe" if IS_WIN else "xmrig",
+        "url": {
+            "Windows": f"https://github.com/xmrig/xmrig/releases/download/v{XMRIG_V}/xmrig-{XMRIG_V}-msvc-win64.zip",
+            "Linux":   f"https://github.com/xmrig/xmrig/releases/download/v{XMRIG_V}/xmrig-{XMRIG_V}-linux-static-x64.tar.gz",
+            "Darwin":  f"https://github.com/xmrig/xmrig/releases/download/v{XMRIG_V}/xmrig-{XMRIG_V}-macos-x64.tar.gz",
+        },
+        "args": lambda m: ["-o", m["pool"], "-u", m["wallet"], "-p", m.get("worker", "w1"), "-k", "--print-time", "30"]
+                          + (["--tls"] if m.get("tls") else []) + (["-t", str(m["threads"])] if m.get("threads") else [])
+                          + m.get("extra", []),
+        "speed_re": r"speed .*?(\d+(?:\.\d+)?) ",
+        "share_re": r"accepted \((\d+)/(\d+)\)",
+    },
+    "srbminer": {
+        "exe": "SRBMiner-MULTI.exe" if IS_WIN else "SRBMiner-MULTI",
+        "url": {
+            "Windows": f"https://github.com/doktor83/SRBMiner-Multi/releases/download/{SRB_V}/SRBMiner-Multi-{SRB_V.replace('.','-')}-win64.zip",
+            "Linux":   f"https://github.com/doktor83/SRBMiner-Multi/releases/download/{SRB_V}/SRBMiner-Multi-{SRB_V.replace('.','-')}-Linux.tar.gz",
+        },
+        "args": lambda m: ["--algorithm", m["algo"], "--pool", m["pool"], "--wallet", m["wallet"],
+                           "--password", m.get("worker", "w1"), "--disable-gpu" if m.get("cpu_only") else "--disable-cpu"]
+                          + (["--cpu-threads", str(m["threads"])] if m.get("threads") else []) + m.get("extra", []),
+        "speed_re": r"[Tt]otal:?\s+(\d+(?:\.\d+)?)\s*[kKmM]?[Hh]/s",
+        "share_re": r"[Aa]ccepted:?\s*(\d+)",
+    },
+    "lolminer": {
+        "exe": "lolMiner.exe" if IS_WIN else "lolMiner",
+        "url": {
+            "Windows": f"https://github.com/Lolliedieb/lolMiner-releases/releases/download/{LOL_V}/lolMiner_v{LOL_V}_Win64.zip",
+            "Linux":   f"https://github.com/Lolliedieb/lolMiner-releases/releases/download/{LOL_V}/lolMiner_v{LOL_V}_Lin64.tar.gz",
+        },
+        "args": lambda m: ["--algo", m["algo"], "--pool", m["pool"], "--user", f"{m['wallet']}.{m.get('worker','w1')}"]
+                          + m.get("extra", []),
+        "speed_re": r"Total.*?(\d+(?:\.\d+)?)\s*[kKmMgG]?[Hh]/s",
+        "share_re": r"Accepted.*?(\d+)",
+    },
+}
 
 DEFAULT_CONFIG = {
-    "wallet": "PASTE_YOUR_MONERO_WALLET_ADDRESS_HERE",
-    "pool": "pool.supportxmr.com:443",
-    "worker": "worker1",
-    "threads": 0,            # 0 = auto (sab cores)
-    "tls": True,
     "gui_port": 8787,
-    "api_port": 8788,
-    "restart_delay_sec": 10
+    "restart_delay_sec": 10,
+    "miners": [
+        {"id": "xmr-cpu", "name": "Monero (CPU)", "miner": "xmrig", "enabled": True,
+         "pool": "pool.supportxmr.com:443", "tls": True,
+         "wallet": "PASTE_YOUR_XMR_WALLET", "worker": "pc1", "threads": 0},
+        {"id": "rvn-gpu", "name": "Ravencoin (GPU)", "miner": "srbminer", "enabled": False,
+         "algo": "kawpow", "pool": "stratum+tcp://rvn.2miners.com:6060",
+         "wallet": "PASTE_YOUR_RVN_WALLET", "worker": "pc1", "cpu_only": False},
+        {"id": "erg-gpu", "name": "Ergo (GPU)", "miner": "lolminer", "enabled": False,
+         "algo": "AUTOLYKOS2", "pool": "erg.2miners.com:8888",
+         "wallet": "PASTE_YOUR_ERG_WALLET", "worker": "pc1"},
+        {"id": "xmr-cpu-2", "name": "Monero via SRBMiner (CPU)", "miner": "srbminer", "enabled": False,
+         "algo": "randomx", "pool": "pool.supportxmr.com:443", "cpu_only": True,
+         "wallet": "PASTE_YOUR_XMR_WALLET", "worker": "pc1", "threads": 0},
+    ],
 }
 
 # ---------------------------------------------------------------- config
@@ -39,75 +88,53 @@ def load_config():
     if not os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH, "w") as f:
             json.dump(DEFAULT_CONFIG, f, indent=2)
-        print(f"[!] Naya config banaya: {CONFIG_PATH}")
-        print("    Usme apna Monero wallet address daalo, phir dobara run karo.")
+        print(f"[!] Naya config banaya: {CONFIG_PATH}\n    Usme apne wallet daalo, jo miner chahiye 'enabled': true karo, phir dobara run karo.")
     with open(CONFIG_PATH) as f:
-        cfg = {**DEFAULT_CONFIG, **json.load(f)}
-    return cfg
+        return {**DEFAULT_CONFIG, **json.load(f)}
 
-# ---------------------------------------------------------------- xmrig download
-def xmrig_binary():
-    exe = "xmrig.exe" if platform.system() == "Windows" else "xmrig"
-    for root, _, files in os.walk(BIN_DIR):
+# ---------------------------------------------------------------- download
+def find_binary(kind):
+    exe = MINERS[kind]["exe"]
+    for root, _, files in os.walk(os.path.join(BIN_DIR, kind)):
         if exe in files:
             return os.path.join(root, exe)
     return None
 
-def download_xmrig():
-    sysname, arch = platform.system(), platform.machine().lower()
-    base = f"https://github.com/xmrig/xmrig/releases/download/v{XMRIG_VERSION}/"
-    if sysname == "Linux":
-        name = f"xmrig-{XMRIG_VERSION}-linux-static-x64.tar.gz"
-    elif sysname == "Windows":
-        name = f"xmrig-{XMRIG_VERSION}-msvc-win64.zip"
-    elif sysname == "Darwin":
-        name = f"xmrig-{XMRIG_VERSION}-macos-{'arm64' if 'arm' in arch else 'x64'}.tar.gz"
-    else:
-        sys.exit(f"Unsupported OS: {sysname}")
-    os.makedirs(BIN_DIR, exist_ok=True)
-    dest = os.path.join(BIN_DIR, name)
-    print(f"[*] XMRig download ho raha hai: {base + name}")
+def download(kind, log):
+    url = MINERS[kind]["url"].get(platform.system())
+    if not url:
+        raise RuntimeError(f"{kind}: {platform.system()} supported nahi")
+    d = os.path.join(BIN_DIR, kind); os.makedirs(d, exist_ok=True)
+    dest = os.path.join(d, url.rsplit("/", 1)[1])
+    log(f"[*] {kind} download: {url}")
     try:
-        req = urllib.request.Request(base + name, headers={"User-Agent": "Mozilla/5.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=60) as r, open(dest, "wb") as f:
             shutil.copyfileobj(r, f)
     except Exception as e:
-        print(f"[!] Python download fail ({e}), curl se try kar rahe hain...")
-        if shutil.which("curl"):
-            subprocess.run(["curl", "-L", "--retry", "3", "-o", dest, base + name], check=True)
-        else:
-            sys.exit(f"Download fail. Manually download karke {BIN_DIR}/ me extract karo: {base + name}")
-    if name.endswith(".zip"):
-        with zipfile.ZipFile(dest) as z: z.extractall(BIN_DIR)
+        log(f"[!] python download fail ({e}), curl try...")
+        if not shutil.which("curl"):
+            raise RuntimeError(f"Download fail. Manually {url} download karke {d}/ me extract karo")
+        subprocess.run(["curl", "-sL", "--retry", "3", "-o", dest, url], check=True)
+    if dest.endswith(".zip"):
+        with zipfile.ZipFile(dest) as z: z.extractall(d)
     else:
-        with tarfile.open(dest) as t: t.extractall(BIN_DIR)
+        with tarfile.open(dest) as t: t.extractall(d)
     os.remove(dest)
-    b = xmrig_binary()
-    if not b:
-        sys.exit("XMRig extract nahi hua")
-    if sysname != "Windows":
-        os.chmod(b, 0o755)
-    print(f"[+] XMRig ready: {b}")
+    b = find_binary(kind)
+    if not b: raise RuntimeError(f"{kind} extract fail")
+    if not IS_WIN: os.chmod(b, 0o755)
+    log(f"[+] {kind} ready: {b}")
     return b
 
-# ---------------------------------------------------------------- miner state
-class Miner:
-    def __init__(self, cfg):
-        self.cfg = cfg
-        self.proc = None
-        self.running = False
-        self.log = deque(maxlen=300)
-        self.stats = {"hashrate": 0.0, "accepted": 0, "rejected": 0, "started": None, "restarts": 0}
-        self.lock = threading.Lock()
-
-    def cmd(self):
-        c = self.cfg
-        b = xmrig_binary() or download_xmrig()
-        args = [b, "-o", c["pool"], "-u", c["wallet"], "-p", c["worker"], "-k",
-                "--http-host", "127.0.0.1", "--http-port", str(c["api_port"]), "--print-time", "30"]
-        if c["tls"]: args.append("--tls")
-        if c["threads"]: args += ["-t", str(c["threads"])]
-        return args
+# ---------------------------------------------------------------- one miner instance
+class MinerProc:
+    def __init__(self, m, restart_delay):
+        self.m, self.kind, self.delay = m, m["miner"], restart_delay
+        self.spec = MINERS[self.kind]
+        self.proc, self.running, self.started = None, False, None
+        self.log = deque(maxlen=200)
+        self.stats = {"hashrate": 0.0, "accepted": 0, "rejected": 0, "restarts": 0, "error": ""}
 
     def start(self):
         if self.running: return
@@ -121,120 +148,152 @@ class Miner:
 
     def _loop(self):
         while self.running:
-            self.stats["started"] = time.time()
-            self._log(f"=== Miner start: {self.cfg['pool']}  wallet={self.cfg['wallet'][:12]}... ===")
+            self.started = time.time()
+            self._log(f"=== START {self.m['name']} [{self.kind}] -> {self.m['pool']} ===")
             try:
-                self.proc = subprocess.Popen(self.cmd(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                b = find_binary(self.kind) or download(self.kind, self._log)
+                cmd = [b] + self.spec["args"](self.m)
+                self.stats["error"] = ""
+                self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                             text=True, errors="replace", cwd=os.path.dirname(b))
                 for line in self.proc.stdout:
                     self._parse(line.rstrip())
             except Exception as e:
-                self._log(f"[ERROR] {e}")
+                self.stats["error"] = str(e); self._log(f"[ERROR] {e}")
             if self.running:
-                self.stats["restarts"] += 1
-                self._log(f"[!] Miner band ho gaya, {self.cfg['restart_delay_sec']}s me restart...")
-                time.sleep(self.cfg["restart_delay_sec"])
-        self._log("=== Miner stopped ===")
+                self.stats["restarts"] += 1; self.stats["hashrate"] = 0.0
+                self._log(f"[!] band ho gaya, {self.delay}s me restart...")
+                time.sleep(self.delay)
+        self.stats["hashrate"] = 0.0
+        self._log("=== STOPPED ===")
 
     def _parse(self, line):
         self._log(line)
-        m = re.search(r"speed .*?(\d+(?:\.\d+)?) ", line)          # "speed 10s/60s/15m 812.3 n/a n/a H/s"
-        if "speed" in line and m:
-            try: self.stats["hashrate"] = float(m.group(1))
+        m = re.search(self.spec["speed_re"], line)
+        if m:
+            try:
+                v = float(m.group(1))
+                unit = re.search(r"(\d+(?:\.\d+)?)\s*([kKmMgG]?)[Hh]/s", line[m.start():])
+                mult = {"k": 1e3, "m": 1e6, "g": 1e9}.get((unit.group(2) if unit else "").lower(), 1)
+                self.stats["hashrate"] = v * mult
             except ValueError: pass
-        if "accepted" in line:
-            m2 = re.search(r"\((\d+)/(\d+)\)", line)
-            if m2:
-                self.stats["accepted"] = int(m2.group(1))
-                self.stats["rejected"] = int(m2.group(2)) - int(m2.group(1))
+        s = re.search(self.spec["share_re"], line)
+        if s:
+            self.stats["accepted"] = int(s.group(1))
+            if s.lastindex and s.lastindex >= 2:
+                self.stats["rejected"] = int(s.group(2)) - int(s.group(1))
 
     def _log(self, s):
         ts = time.strftime("%H:%M:%S")
-        with self.lock:
-            self.log.append(f"[{ts}] {s}")
-        print(f"[{ts}] {s}", flush=True)
+        self.log.append(f"[{ts}] {s}")
+        print(f"[{ts}] [{self.m['id']}] {s}", flush=True)
 
     def snapshot(self):
-        up = int(time.time() - self.stats["started"]) if self.stats["started"] and self.running else 0
-        with self.lock:
-            return {**self.stats, "running": self.running, "uptime": up,
-                    "pool": self.cfg["pool"], "wallet": self.cfg["wallet"], "log": list(self.log)[-80:]}
+        return {**self.stats, "id": self.m["id"], "name": self.m["name"], "miner": self.kind,
+                "pool": self.m["pool"], "wallet": self.m["wallet"], "running": self.running,
+                "uptime": int(time.time() - self.started) if self.running and self.started else 0,
+                "log": list(self.log)[-40:]}
 
 # ---------------------------------------------------------------- GUI
-HTML = """<!doctype html><html><head><meta charset=utf-8><title>XMR Miner Dashboard</title>
+HTML = """<!doctype html><html><head><meta charset=utf-8><title>Multi-Miner Dashboard</title>
 <style>
 body{font-family:system-ui,sans-serif;background:#0f1115;color:#e6e6e6;margin:0;padding:20px}
-h1{margin:0 0 16px;font-size:22px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
-.card{background:#1a1d24;border-radius:10px;padding:14px}.card b{display:block;font-size:12px;color:#8a8f9c;margin-bottom:6px}
-.card span{font-size:24px;font-weight:600}.on{color:#3ddc84}.off{color:#ff5c5c}
-button{background:#2d6cdf;color:#fff;border:0;padding:10px 18px;border-radius:8px;cursor:pointer;font-size:14px;margin-right:8px}
-button.stop{background:#d9463e}pre{background:#000;padding:12px;border-radius:10px;height:380px;overflow:auto;font-size:12px;margin-top:16px}
-small{color:#8a8f9c}
+h1{margin:0 0 4px;font-size:22px}.sub{color:#8a8f9c;margin-bottom:16px}
+.tot{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}.tot div{background:#1a1d24;border-radius:10px;padding:12px 18px}
+.tot b{display:block;font-size:11px;color:#8a8f9c}.tot span{font-size:22px;font-weight:600}
+.m{background:#1a1d24;border-radius:12px;padding:16px;margin-bottom:14px;border-left:4px solid #555}
+.m.on{border-color:#3ddc84}.m.err{border-color:#ff5c5c}
+.hd{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.hd h2{margin:0;font-size:17px}.tag{font-size:11px;background:#2a2e38;padding:2px 8px;border-radius:6px;color:#aab;margin-left:8px}
+.st{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:12px 0}
+.st div b{display:block;font-size:11px;color:#8a8f9c}.st div span{font-size:18px;font-weight:600}
+button{background:#2d6cdf;color:#fff;border:0;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;margin-left:6px}
+button.stop{background:#d9463e}.gn{color:#3ddc84}.rd{color:#ff5c5c}
+pre{background:#000;padding:10px;border-radius:8px;height:150px;overflow:auto;font-size:11px;margin:0}
+small{color:#8a8f9c;word-break:break-all}.err{color:#ff8c8c;font-size:12px}
 </style></head><body>
-<h1>⛏️ Monero CPU Miner — 24×7 Dashboard</h1>
-<div class=grid>
-<div class=card><b>STATUS</b><span id=st>-</span></div>
-<div class=card><b>HASHRATE</b><span id=hr>-</span></div>
-<div class=card><b>ACCEPTED SHARES</b><span id=acc>-</span></div>
-<div class=card><b>REJECTED</b><span id=rej>-</span></div>
-<div class=card><b>UPTIME</b><span id=up>-</span></div>
-<div class=card><b>AUTO-RESTARTS</b><span id=rs>-</span></div>
+<h1>⛏️ Multi-Miner 24×7 Dashboard</h1>
+<div class=sub>XMRig · SRBMiner · lolMiner — sab ek jagah. Miners add/remove: <code>config.json</code></div>
+<div class=tot>
+<div><b>ACTIVE MINERS</b><span id=tA>-</span></div>
+<div><b>TOTAL ACCEPTED SHARES</b><span id=tS>-</span></div>
+<div><b>TOTAL RESTARTS</b><span id=tR>-</span></div>
+<div><b>&nbsp;</b><button onclick="act('all','start')">▶ Start All</button><button class=stop onclick="act('all','stop')">■ Stop All</button></div>
 </div>
-<p><small>Pool: <span id=pool></span> &nbsp;|&nbsp; Wallet: <span id=wal></span></small></p>
-<button onclick="act('start')">▶ Start</button><button class=stop onclick="act('stop')">■ Stop</button>
-<pre id=log></pre>
+<div id=list></div>
 <script>
-async function act(a){await fetch('/api/'+a,{method:'POST'});poll()}
+const open={};
+async function act(id,a){await fetch('/api/'+a+'/'+id,{method:'POST'});poll()}
 function fmt(s){return Math.floor(s/3600)+'h '+Math.floor(s%3600/60)+'m '+s%60+'s'}
+function hr(h){return h>=1e6?(h/1e6).toFixed(2)+' MH/s':h>=1e3?(h/1e3).toFixed(2)+' kH/s':h.toFixed(1)+' H/s'}
 async function poll(){try{const d=await (await fetch('/api/stats')).json();
-st.textContent=d.running?'RUNNING':'STOPPED';st.className=d.running?'on':'off';
-hr.textContent=d.hashrate.toFixed(1)+' H/s';acc.textContent=d.accepted;rej.textContent=d.rejected;
-up.textContent=fmt(d.uptime);rs.textContent=d.restarts;pool.textContent=d.pool;wal.textContent=d.wallet;
-const l=document.getElementById('log');const atB=l.scrollTop+l.clientHeight>=l.scrollHeight-10;
-l.textContent=d.log.join('\\n');if(atB)l.scrollTop=l.scrollHeight}catch(e){}}
+let A=0,S=0,R=0;const L=document.getElementById('list');
+const pos={};[...L.querySelectorAll('pre')].forEach(p=>pos[p.id]=p.scrollTop+p.clientHeight>=p.scrollHeight-10);
+L.innerHTML=d.map(m=>{if(m.running)A++;S+=m.accepted;R+=m.restarts;
+return `<div class="m ${m.error?'err':m.running?'on':''}"><div class=hd><h2>${m.name}<span class=tag>${m.miner}</span>
+<span class=tag ${m.running?'style="color:#3ddc84"':''}>${m.running?'RUNNING':'STOPPED'}</span></h2>
+<div><button onclick="act('${m.id}','start')">▶ Start</button><button class=stop onclick="act('${m.id}','stop')">■ Stop</button></div></div>
+<div class=st><div><b>HASHRATE</b><span>${hr(m.hashrate)}</span></div><div><b>ACCEPTED</b><span class=gn>${m.accepted}</span></div>
+<div><b>REJECTED</b><span class=rd>${m.rejected}</span></div><div><b>UPTIME</b><span>${fmt(m.uptime)}</span></div><div><b>RESTARTS</b><span>${m.restarts}</span></div></div>
+<small>Pool: ${m.pool} · Wallet: ${m.wallet}</small>${m.error?`<div class=err>⚠ ${m.error}</div>`:''}
+<pre id="log-${m.id}">${m.log.join('\\n')}</pre></div>`}).join('');
+[...L.querySelectorAll('pre')].forEach(p=>{if(pos[p.id]!==false)p.scrollTop=p.scrollHeight});
+tA.textContent=A+' / '+d.length;tS.textContent=S;tR.textContent=R}catch(e){}}
 setInterval(poll,2000);poll()
 </script></body></html>"""
 
-def make_handler(miner):
+def make_handler(miners):
     class H(BaseHTTPRequestHandler):
         def log_message(self, *a): pass
-        def _send(self, code, body, ctype="text/html"):
-            self.send_response(code); self.send_header("Content-Type", ctype); self.end_headers()
-            self.wfile.write(body.encode() if isinstance(body, str) else body)
+        def _send(self, body, ctype="text/html"):
+            self.send_response(200); self.send_header("Content-Type", ctype); self.end_headers()
+            self.wfile.write(body.encode())
         def do_GET(self):
             if self.path == "/api/stats":
-                self._send(200, json.dumps(miner.snapshot()), "application/json")
+                self._send(json.dumps([m.snapshot() for m in miners]), "application/json")
             else:
-                self._send(200, HTML)
+                self._send(HTML)
         def do_POST(self):
-            if self.path == "/api/start": miner.start()
-            elif self.path == "/api/stop": miner.stop()
-            self._send(200, "{}", "application/json")
+            parts = self.path.strip("/").split("/")       # api/start/<id>
+            if len(parts) == 3 and parts[0] == "api":
+                action, mid = parts[1], parts[2]
+                for m in miners:
+                    if mid in ("all", m.m["id"]):
+                        (m.start if action == "start" else m.stop)()
+            self._send("{}", "application/json")
     return H
 
 # ---------------------------------------------------------------- main
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--wallet"); ap.add_argument("--pool"); ap.add_argument("--threads", type=int)
     ap.add_argument("--no-gui", action="store_true"); ap.add_argument("--port", type=int)
+    ap.add_argument("--only", help="sirf ye miner id(s) chalao, comma separated")
     a = ap.parse_args()
     cfg = load_config()
-    if a.wallet: cfg["wallet"] = a.wallet
-    if a.pool: cfg["pool"] = a.pool
-    if a.threads is not None: cfg["threads"] = a.threads
     if a.port: cfg["gui_port"] = a.port
-    if "PASTE_YOUR" in cfg["wallet"]:
-        sys.exit("[X] Wallet address set nahi hai. miner/config.json me 'wallet' daalo ya --wallet use karo.")
+    only = set(a.only.split(",")) if a.only else None
 
-    miner = Miner(cfg)
-    miner.start()
+    miners = [MinerProc(m, cfg["restart_delay_sec"]) for m in cfg["miners"]]
+    if not miners: sys.exit("[X] config.json me koi miner nahi hai")
+    for mp in miners:
+        want = mp.m.get("enabled", True) if only is None else mp.m["id"] in only
+        if want and "PASTE_YOUR" in mp.m["wallet"]:
+            print(f"[X] '{mp.m['id']}' ka wallet set nahi hai (config.json) — skip"); continue
+        if want: mp.start()
+    if not any(m.running for m in miners):
+        print("[!] Koi miner start nahi hua. config.json me wallet + enabled:true check karo.")
+        if a.no_gui: sys.exit(1)
+
     if not a.no_gui:
-        srv = ThreadingHTTPServer(("0.0.0.0", cfg["gui_port"]), make_handler(miner))
+        srv = ThreadingHTTPServer(("0.0.0.0", cfg["gui_port"]), make_handler(miners))
         threading.Thread(target=srv.serve_forever, daemon=True).start()
         print(f"[+] GUI dashboard: http://localhost:{cfg['gui_port']}")
     try:
         while True: time.sleep(1)
     except KeyboardInterrupt:
-        print("\n[*] Band kar rahe hain..."); miner.stop(); time.sleep(1)
+        print("\n[*] Sab band kar rahe hain...")
+        for m in miners: m.stop()
+        time.sleep(1)
 
 if __name__ == "__main__":
     main()

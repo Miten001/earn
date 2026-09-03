@@ -1,3 +1,4 @@
-xmrig/
+bin/
 config.json
 miner.log
+__pycache__/
