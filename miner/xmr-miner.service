@@ -1,0 +1,17 @@
+# Linux systemd service (boot pe auto-start, 24x7):
+#   sudo cp xmr-miner.service /etc/systemd/system/
+#   (User= aur path apne hisaab se badlo)
+#   sudo systemctl enable --now xmr-miner
+[Unit]
+Description=Monero CPU Miner 24x7
+After=network-online.target
+
+[Service]
+User=REPLACE_USER
+WorkingDirectory=/home/REPLACE_USER/earn/miner
+ExecStart=/usr/bin/python3 miner.py --no-gui
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
