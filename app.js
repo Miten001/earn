@@ -5,6 +5,7 @@
   const canvas = $("designCanvas");
   const card = $("canvasCard");
   const ctx = canvas.getContext("2d", { alpha: false });
+  let activeCtx = ctx;
   const cursor = $("autoCursor");
 
   const palettes = [
@@ -42,7 +43,9 @@
     kaleido: { name: "Prismatic kaleidoscope", short: "KALEIDO" },
     orbit: { name: "Tidal orbit study", short: "ORBITALS" },
     lattice: { name: "Aurora flow field", short: "FLOW FIELD" },
-    bloom: { name: "Electric botanical", short: "BLOOM" }
+    bloom: { name: "Electric botanical", short: "BLOOM" },
+    spiro: { name: "Cycloid spirograph", short: "SPIROGRAPH" },
+    constellation: { name: "Starfield constellation", short: "STARFIELD" }
   };
 
   const state = {
@@ -253,64 +256,138 @@
     return ops;
   }
 
+  function createSpiro(random, density) {
+    const ops = [];
+    const arms = Math.round(3 + density / 30);
+    const steps = Math.round(120 + density * 1.8);
+    const centerX = .5 + (random() - .5) * .03;
+    const centerY = .5 + (random() - .5) * .03;
+
+    for (let arm = 0; arm < arms; arm++) {
+      const R = .16 + random() * .10;
+      const r = R * (.28 + random() * .38);
+      const d = r * (.55 + random() * .75);
+      const spins = 4 + Math.floor(random() * 9);
+      const k = (R - r) / r;
+      const scale = .42 / ((R - r) + d);
+      const rotation = random() * Math.PI * 2;
+      let previous = null;
+
+      for (let step = 0; step <= steps; step++) {
+        const t = (step / steps) * Math.PI * 2 * spins;
+        const x = (R - r) * Math.cos(t) + d * Math.cos(k * t);
+        const y = (R - r) * Math.sin(t) - d * Math.sin(k * t);
+        const px = centerX + (x * Math.cos(rotation) - y * Math.sin(rotation)) * scale;
+        const py = centerY + (x * Math.sin(rotation) + y * Math.cos(rotation)) * scale;
+        if (previous) {
+          addLine(ops, previous.x, previous.y, px, py, (arm + Math.floor(step / 40)) % 4, .5, .3 + (step / steps) * .45);
+        }
+        previous = { x: px, y: py };
+      }
+    }
+
+    for (let i = 0; i < 22; i++) {
+      const a = random() * Math.PI * 2;
+      const d = random() * .10;
+      addDot(ops, centerX + Math.cos(a) * d, centerY + Math.sin(a) * d, Math.floor(random() * 4), .5 + random() * 1.3, .55 + random() * .35);
+    }
+    return ops;
+  }
+
+  function createConstellation(random, density) {
+    const ops = [];
+    const count = Math.round(26 + density / 2.6);
+    const points = [];
+    for (let i = 0; i < count; i++) {
+      const a = random() * Math.PI * 2;
+      const d = Math.pow(random(), .62) * .45;
+      points.push({
+        x: .5 + Math.cos(a) * d,
+        y: .5 + Math.sin(a) * d * .85,
+        r: .35 + Math.pow(random(), 2.2) * 2.2
+      });
+    }
+
+    const threshold = .17 + density * .0007;
+    for (let i = 0; i < points.length; i++) {
+      const near = [];
+      for (let j = 0; j < points.length; j++) {
+        if (i === j) continue;
+        const dist = Math.hypot(points[i].x - points[j].x, points[i].y - points[j].y);
+        if (dist < threshold) near.push({ j, dist });
+      }
+      near.sort((a, b) => a.dist - b.dist);
+      const links = Math.min(2 + Math.floor(random() * 2), near.length);
+      for (let k = 0; k < links; k++) {
+        const { j, dist } = near[k];
+        if (j > i) addLine(ops, points[i].x, points[i].y, points[j].x, points[j].y, (i + j) % 4, .32, (.62 - dist / threshold) * .55 + .12);
+      }
+    }
+
+    for (const p of points) addDot(ops, p.x, p.y, Math.floor(random() * 4), p.r, .45 + random() * .5);
+    return ops;
+  }
+
   function makeOperations(type, seed) {
     const random = makeRandom(seed);
     if (type === "kaleido") return createKaleido(random, state.density);
     if (type === "orbit") return createOrbit(random, state.density);
     if (type === "lattice") return createLattice(random, state.density);
+    if (type === "spiro") return createSpiro(random, state.density);
+    if (type === "constellation") return createConstellation(random, state.density);
     return createBloom(random, state.density);
   }
 
   function paintBase() {
     const { width, height } = state.size;
     const palette = palettes[state.paletteIndex];
-    ctx.globalCompositeOperation = "source-over";
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = palette.background;
-    ctx.fillRect(0, 0, width, height);
+    activeCtx.globalCompositeOperation = "source-over";
+    activeCtx.globalAlpha = 1;
+    activeCtx.fillStyle = palette.background;
+    activeCtx.fillRect(0, 0, width, height);
 
-    const primaryGlow = ctx.createRadialGradient(width * .50, height * .49, 0, width * .5, height * .49, Math.max(width, height) * .63);
+    const primaryGlow = activeCtx.createRadialGradient(width * .50, height * .49, 0, width * .5, height * .49, Math.max(width, height) * .63);
     primaryGlow.addColorStop(0, rgba(palette.glow, .40));
     primaryGlow.addColorStop(.45, rgba(palette.glow, .12));
     primaryGlow.addColorStop(1, rgba(palette.background, 0));
-    ctx.fillStyle = primaryGlow;
-    ctx.fillRect(0, 0, width, height);
+    activeCtx.fillStyle = primaryGlow;
+    activeCtx.fillRect(0, 0, width, height);
 
-    const edgeGlow = ctx.createRadialGradient(width * .09, height * .85, 0, width * .09, height * .85, width * .55);
+    const edgeGlow = activeCtx.createRadialGradient(width * .09, height * .85, 0, width * .09, height * .85, width * .55);
     edgeGlow.addColorStop(0, rgba(palette.colors[1], .075));
     edgeGlow.addColorStop(1, rgba(palette.colors[1], 0));
-    ctx.fillStyle = edgeGlow;
-    ctx.fillRect(0, 0, width, height);
+    activeCtx.fillStyle = edgeGlow;
+    activeCtx.fillRect(0, 0, width, height);
   }
 
   function drawOperation(op, index) {
     const { width, height } = state.size;
     const colors = palettes[state.paletteIndex].colors;
     const color = colors[op.color % colors.length];
-    ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = op.alpha;
-    ctx.strokeStyle = color;
-    ctx.fillStyle = color;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.shadowColor = color;
-    ctx.shadowBlur = index % 11 === 0 ? 8 : 2;
+    activeCtx.globalCompositeOperation = "lighter";
+    activeCtx.globalAlpha = op.alpha;
+    activeCtx.strokeStyle = color;
+    activeCtx.fillStyle = color;
+    activeCtx.lineCap = "round";
+    activeCtx.lineJoin = "round";
+    activeCtx.shadowColor = color;
+    activeCtx.shadowBlur = index % 11 === 0 ? 8 : 2;
 
     if (op.kind === "line") {
-      ctx.lineWidth = op.width;
-      ctx.beginPath();
-      ctx.moveTo(op.x1 * width, op.y1 * height);
-      if (op.control) ctx.quadraticCurveTo(op.control.x * width, op.control.y * height, op.x2 * width, op.y2 * height);
-      else ctx.lineTo(op.x2 * width, op.y2 * height);
-      ctx.stroke();
+      activeCtx.lineWidth = op.width;
+      activeCtx.beginPath();
+      activeCtx.moveTo(op.x1 * width, op.y1 * height);
+      if (op.control) activeCtx.quadraticCurveTo(op.control.x * width, op.control.y * height, op.x2 * width, op.y2 * height);
+      else activeCtx.lineTo(op.x2 * width, op.y2 * height);
+      activeCtx.stroke();
       state.lastCursor = { x: op.x2, y: op.y2 };
     } else {
-      ctx.beginPath();
-      ctx.arc(op.x * width, op.y * height, op.radius, 0, Math.PI * 2);
-      ctx.fill();
+      activeCtx.beginPath();
+      activeCtx.arc(op.x * width, op.y * height, op.radius, 0, Math.PI * 2);
+      activeCtx.fill();
       state.lastCursor = { x: op.x, y: op.y };
     }
-    ctx.shadowBlur = 0;
+    activeCtx.shadowBlur = 0;
   }
 
   function updateCursor(click = false) {
@@ -383,9 +460,9 @@
     else if (state.phase === "finished") $("progressText").textContent = "Ready when you are";
   }
 
-  function createDesign(incrementLoop = true) {
-    const allStyles = ["kaleido", "orbit", "lattice", "bloom"];
-    const seed = randomSeed();
+  function createDesign(incrementLoop = true, forcedSeed) {
+    const allStyles = ["kaleido", "orbit", "lattice", "bloom", "spiro", "constellation"];
+    const seed = forcedSeed != null ? (forcedSeed >>> 0) || randomSeed() : randomSeed();
     const random = makeRandom(seed);
     const type = state.style === "auto" ? pick(allStyles, random) : state.style;
     if (incrementLoop) state.loop += 1;
@@ -413,10 +490,10 @@
   function clearFrame() {
     const palette = palettes[state.paletteIndex];
     const { width, height } = state.size;
-    ctx.globalCompositeOperation = "source-over";
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = rgba(palette.background, .12);
-    ctx.fillRect(0, 0, width, height);
+    activeCtx.globalCompositeOperation = "source-over";
+    activeCtx.globalAlpha = 1;
+    activeCtx.fillStyle = rgba(palette.background, .12);
+    activeCtx.fillRect(0, 0, width, height);
   }
 
   function togglePlaying(force) {
@@ -542,6 +619,132 @@
   window.addEventListener("resize", () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(resizeCanvas, 100);
+  });
+
+  function flashButton(button, label) {
+    if (button.dataset.label == null) button.dataset.label = button.textContent;
+    clearTimeout(button._flashTimer);
+    button.textContent = label;
+    button.classList.add("is-flash");
+    button._flashTimer = setTimeout(() => {
+      button.textContent = button.dataset.label;
+      button.classList.remove("is-flash");
+    }, 1400);
+  }
+
+  function exportPNG() {
+    const design = state.design;
+    const { width, height } = state.size;
+    const scale = 2;
+    const out = document.createElement("canvas");
+    out.width = Math.max(1, Math.round(width * scale));
+    out.height = Math.max(1, Math.round(height * scale));
+    const octx = out.getContext("2d");
+    octx.scale(scale, scale);
+    octx.imageSmoothingEnabled = true;
+
+    const previousCtx = activeCtx;
+    const previousCursor = state.lastCursor;
+    activeCtx = octx;
+    try {
+      paintBase();
+      if (design) {
+        for (let i = 0; i < design.operations.length; i++) drawOperation(design.operations[i], i);
+      }
+    } finally {
+      activeCtx = previousCtx;
+      state.lastCursor = previousCursor;
+    }
+
+    const slug = design ? `${design.seed.toString(16)}-${design.type}` : Date.now().toString(16);
+    const link = document.createElement("a");
+    link.download = `loopsketch-${slug}.png`;
+    link.href = out.toDataURL("image/png");
+    link.click();
+  }
+
+  function copySeed() {
+    const design = state.design;
+    if (!design) return;
+    const value = `LoopSketch seed ${design.seed.toString(16).toUpperCase().padStart(8, "0")} (${design.type})`;
+    const done = () => flashButton($("copySeedButton"), "Copied ✓");
+    const fail = () => flashButton($("copySeedButton"), "Press Ctrl+C");
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(value).then(done, fail);
+    } else {
+      const area = document.createElement("textarea");
+      area.value = value;
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.select();
+      try {
+        document.execCommand("copy");
+        done();
+      } catch (_) {
+        fail();
+      }
+      document.body.removeChild(area);
+    }
+  }
+
+  function applySeed() {
+    const raw = $("seedInput").value.trim();
+    if (!raw) {
+      flashButton($("applySeedButton"), "Empty");
+      return;
+    }
+    const cleaned = raw.replace(/^#|0x/gi, "").replace(/[\s-]/g, "");
+    const parsed = parseInt(cleaned, 16);
+    if (Number.isNaN(parsed)) {
+      flashButton($("applySeedButton"), "Invalid");
+      return;
+    }
+    $("seedInput").value = "";
+    if (!state.playing) togglePlaying(true);
+    createDesign(true, parsed);
+    flashButton($("applySeedButton"), "Loaded");
+  }
+
+  $("exportButton").addEventListener("click", () => {
+    exportPNG();
+    flashButton($("exportButton"), "Saved ✓");
+  });
+  $("copySeedButton").addEventListener("click", copySeed);
+  $("applySeedButton").addEventListener("click", applySeed);
+  $("seedInput").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      applySeed();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    const target = event.target;
+    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    switch (event.key.toLowerCase()) {
+      case " ":
+        event.preventDefault();
+        togglePlaying();
+        break;
+      case "n":
+        queueFreshDesign();
+        break;
+      case "p":
+        nextPalette();
+        break;
+      case "e":
+        exportPNG();
+        flashButton($("exportButton"), "Saved ✓");
+        break;
+      case "c":
+        copySeed();
+        break;
+      case "f":
+        $("fullscreenButton").click();
+        break;
+    }
   });
 
   updateStaticUI();

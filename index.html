@@ -82,7 +82,7 @@
           <p class="eyebrow">GENERATOR CONTROLS</p>
           <h2>Shape the loop</h2>
         </div>
-        <span class="version-pill">v1.0</span>
+        <span class="version-pill">v1.1</span>
       </div>
 
       <fieldset class="control-section style-section">
@@ -99,6 +99,12 @@
           </button>
           <button class="style-card" data-style="lattice" type="button">
             <span class="style-preview preview-lattice"><i></i><i></i><i></i></span><b>Flow field</b>
+          </button>
+          <button class="style-card" data-style="spiro" type="button">
+            <span class="style-preview preview-spiro"><i></i><i></i><i></i></span><b>Spirograph</b>
+          </button>
+          <button class="style-card" data-style="constellation" type="button">
+            <span class="style-preview preview-constellation"><i></i><i></i><i></i></span><b>Constellation</b>
           </button>
         </div>
       </fieldset>
@@ -138,12 +144,24 @@
         </label>
       </fieldset>
 
+      <fieldset class="control-section seed-section">
+        <legend>Share &amp; export</legend>
+        <div class="seed-row">
+          <input id="seedInput" type="text" inputmode="text" placeholder="Paste a seed to recreate" autocomplete="off" spellcheck="false" />
+          <button class="cycle-button apply-button" id="applySeedButton" type="button" title="Recreate from seed" aria-label="Recreate from seed">↺</button>
+        </div>
+        <div class="output-actions">
+          <button class="secondary-action" id="exportButton" type="button">Export PNG</button>
+          <button class="secondary-action" id="copySeedButton" type="button">Copy seed</button>
+        </div>
+      </fieldset>
+
       <div class="panel-actions">
         <button class="secondary-action" id="clearButton" type="button">Clear canvas</button>
         <button class="primary-action" id="createButton" type="button"><span>✦</span> Make a new one</button>
       </div>
 
-      <p class="pointer-note"><span>⌁</span> The auto pointer is visual and stays inside this studio.</p>
+      <p class="pointer-note"><span>⌁</span> Shortcuts: Space pause · N new · P palette · E export · C copy · F fullscreen</p>
     </aside>
   </main>
 
