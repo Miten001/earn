@@ -1,313 +1,553 @@
-// ===== Constants =====
-const STORAGE_KEY = "gst-invoice-draft-v1";
+(() => {
+  "use strict";
 
-const INDIAN_STATES = [
-  "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh",
-  "Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka",
-  "Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram",
-  "Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana",
-  "Tripura","Uttar Pradesh","Uttarakhand","West Bengal",
-  "Delhi","Jammu and Kashmir","Ladakh","Chandigarh","Puducherry",
-  "Andaman and Nicobar Islands","Dadra and Nagar Haveli and Daman and Diu","Lakshadweep"
-];
+  const $ = (id) => document.getElementById(id);
+  const canvas = $("designCanvas");
+  const card = $("canvasCard");
+  const ctx = canvas.getContext("2d", { alpha: false });
+  const cursor = $("autoCursor");
 
-// ===== State =====
-let state = {
-  logo: "",
-  sellerName: "", sellerGstin: "", sellerAddress: "", sellerState: "",
-  sellerPhone: "", sellerEmail: "",
-  buyerName: "", buyerGstin: "", buyerAddress: "", buyerState: "",
-  interstate: false,
-  invoiceNo: "INV-001", invoiceDate: "",
-  notes: "",
-  items: [{ desc: "Web Design Service", hsn: "998314", qty: 1, rate: 5000, gst: 18 }]
-};
-
-// ===== Helpers =====
-const $ = (id) => document.getElementById(id);
-const fmt = (n) => "₹" + Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 0 });
-
-// Number to words (Indian system) - lakhs/crores
-function numToWords(num) {
-  num = Math.round(num);
-  if (num === 0) return "Zero Rupees Only";
-  const a = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
-  const b = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
-  function inWords(n) {
-    if (n < 20) return a[n];
-    if (n < 100) return b[Math.floor(n/10)] + (n % 10 ? " " + a[n%10] : "");
-    return a[Math.floor(n/100)] + " Hundred" + (n % 100 ? " " + inWords(n % 100) : "");
-  }
-  let str = "";
-  const crore = Math.floor(num / 10000000); num %= 10000000;
-  const lakh  = Math.floor(num / 100000);   num %= 100000;
-  const thou  = Math.floor(num / 1000);     num %= 1000;
-  if (crore) str += inWords(crore) + " Crore ";
-  if (lakh)  str += inWords(lakh) + " Lakh ";
-  if (thou)  str += inWords(thou) + " Thousand ";
-  if (num)   str += inWords(num);
-  return str.trim() + " Rupees Only";
-}
-
-function populateStates() {
-  const opts = '<option value="">Select state</option>' +
-    INDIAN_STATES.map(s => `<option value="${s}">${s}</option>`).join("");
-  $("sellerState").innerHTML = opts;
-  $("buyerState").innerHTML = opts;
-}
-
-// ===== Persistence =====
-let saveTimer;
-function save() {
-  $("autosaveStatus").textContent = "Saving…";
-  $("autosaveStatus").classList.add("saving");
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      $("autosaveStatus").textContent = "Auto-saved";
-      $("autosaveStatus").classList.remove("saving");
-    } catch (e) {
-      $("autosaveStatus").textContent = "Save failed";
+  const palettes = [
+    {
+      name: "Ultraviolet bloom",
+      description: "Cool glow on midnight ink",
+      colors: ["#67e6f1", "#9b7cf6", "#e17ee7", "#d9f584"],
+      background: "#080d20",
+      glow: "#352060"
+    },
+    {
+      name: "Solar afterglow",
+      description: "Warm sparks through deep plum",
+      colors: ["#ffcd6b", "#ff7c91", "#c47dff", "#6ce7d2"],
+      background: "#170b24",
+      glow: "#702950"
+    },
+    {
+      name: "Pacific signal",
+      description: "Electric cyan and mineral blue",
+      colors: ["#63f0e1", "#52c6ff", "#7e8cff", "#fcf17b"],
+      background: "#061a2a",
+      glow: "#084a62"
+    },
+    {
+      name: "Botanical voltage",
+      description: "Acid green meets soft violet",
+      colors: ["#d7fa80", "#79f0b8", "#bb88fc", "#f29bd9"],
+      background: "#0c1d1c",
+      glow: "#315537"
     }
-  }, 400);
-}
+  ];
 
-function load() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) state = { ...state, ...JSON.parse(raw) };
-  } catch (e) { /* ignore */ }
-}
-
-function applyToForm() {
-  ["sellerName","sellerGstin","sellerAddress","sellerPhone","sellerEmail",
-   "buyerName","buyerGstin","buyerAddress","invoiceNo","invoiceDate","notes"]
-   .forEach(k => { if ($(k)) $(k).value = state[k] || ""; });
-  $("sellerState").value = state.sellerState || "";
-  $("buyerState").value  = state.buyerState  || "";
-  $("interstate").checked = !!state.interstate;
-  if (state.logo) {
-    $("logoPreview").src = state.logo;
-    $("logoPreview").classList.add("has-image");
-    document.querySelector(".logo-upload").classList.add("has-image");
-  }
-}
-
-// ===== Render Items =====
-function renderItems() {
-  const wrap = $("items");
-  wrap.innerHTML = "";
-  state.items.forEach((it, i) => {
-    const row = document.createElement("div");
-    row.className = "item-row";
-    row.innerHTML = `
-      <input placeholder="Description" value="${it.desc || ""}" data-i="${i}" data-k="desc" />
-      <input placeholder="HSN/SAC" value="${it.hsn || ""}" data-i="${i}" data-k="hsn" />
-      <input type="number" min="0" step="any" value="${it.qty}" data-i="${i}" data-k="qty" />
-      <input type="number" min="0" step="any" value="${it.rate}" data-i="${i}" data-k="rate" />
-      <input type="number" min="0" step="any" value="${it.gst}" data-i="${i}" data-k="gst" />
-      <button class="remove-btn" data-rm="${i}" title="Remove">×</button>
-    `;
-    wrap.appendChild(row);
-  });
-
-  wrap.querySelectorAll("input").forEach(inp => {
-    inp.addEventListener("input", (e) => {
-      const i = +e.target.dataset.i;
-      const k = e.target.dataset.k;
-      state.items[i][k] = (k === "desc" || k === "hsn") ? e.target.value : +e.target.value;
-      save();
-      updatePreview();
-    });
-  });
-
-  wrap.querySelectorAll(".remove-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      state.items.splice(+btn.dataset.rm, 1);
-      if (state.items.length === 0) {
-        state.items.push({ desc: "", hsn: "", qty: 1, rate: 0, gst: 18 });
-      }
-      save();
-      renderItems();
-      updatePreview();
-    });
-  });
-}
-
-// ===== Update Preview =====
-function updatePreview() {
-  // Logo
-  if (state.logo) {
-    $("pLogo").src = state.logo;
-    $("pLogo").classList.add("has-image");
-  } else {
-    $("pLogo").classList.remove("has-image");
-  }
-
-  // Seller
-  $("pSellerName").textContent    = state.sellerName    || "Your Business Name";
-  $("pSellerAddress").textContent = (state.sellerAddress || "Your address") + (state.sellerState ? ", " + state.sellerState : "");
-  $("pSellerGstin").textContent   = state.sellerGstin   || "—";
-  $("pSellerContact").textContent = [state.sellerPhone, state.sellerEmail].filter(Boolean).join(" · ");
-
-  // Buyer
-  $("pBuyerName").textContent     = state.buyerName     || "Customer Name";
-  $("pBuyerAddress").textContent  = state.buyerAddress  || "";
-  $("pBuyerGstinLine").textContent = state.buyerGstin ? "GSTIN: " + state.buyerGstin : "";
-  $("pPlaceOfSupply").textContent = state.buyerState ? "Place of Supply: " + state.buyerState : "";
-
-  // Invoice meta
-  $("pInvoiceNo").textContent     = state.invoiceNo || "INV-001";
-  $("pInvoiceDate").textContent   = state.invoiceDate ? "Date: " + new Date(state.invoiceDate).toLocaleDateString("en-IN") : "";
-  $("pNotes").textContent         = state.notes || "";
-
-  // Items + totals
-  let subtotal = 0, totalGst = 0;
-  const rows = state.items.map((it, i) => {
-    const amt = (it.qty || 0) * (it.rate || 0);
-    const gstAmt = amt * ((it.gst || 0) / 100);
-    subtotal += amt;
-    totalGst += gstAmt;
-    return `<tr>
-      <td>${i + 1}</td>
-      <td>${it.desc || "-"}</td>
-      <td>${it.hsn || "-"}</td>
-      <td>${it.qty || 0}</td>
-      <td>${fmt(it.rate || 0)}</td>
-      <td>${it.gst || 0}%</td>
-      <td>${fmt(amt + gstAmt)}</td>
-    </tr>`;
-  }).join("");
-  $("pItems").innerHTML = rows;
-
-  $("pSubtotal").textContent = fmt(subtotal);
-
-  // Interstate vs intrastate
-  if (state.interstate) {
-    $("pCgstRow").hidden = true;
-    $("pSgstRow").hidden = true;
-    $("pIgstRow").hidden = false;
-    $("pIgst").textContent = fmt(totalGst);
-  } else {
-    $("pCgstRow").hidden = false;
-    $("pSgstRow").hidden = false;
-    $("pIgstRow").hidden = true;
-    $("pCgst").textContent = fmt(totalGst / 2);
-    $("pSgst").textContent = fmt(totalGst / 2);
-  }
-
-  const total = subtotal + totalGst;
-  $("pTotal").textContent = fmt(total);
-  $("pTotalWords").textContent = "In words: " + numToWords(total);
-}
-
-// ===== Hook form inputs =====
-const FIELD_IDS = ["sellerName","sellerGstin","sellerAddress","sellerPhone","sellerEmail",
-                   "buyerName","buyerGstin","buyerAddress","invoiceNo","invoiceDate","notes"];
-
-FIELD_IDS.forEach(id => {
-  $(id).addEventListener("input", (e) => {
-    state[id] = e.target.value;
-    save();
-    updatePreview();
-  });
-});
-
-$("sellerState").addEventListener("change", (e) => {
-  state.sellerState = e.target.value;
-  // auto-detect interstate
-  if (state.sellerState && state.buyerState) {
-    state.interstate = state.sellerState !== state.buyerState;
-    $("interstate").checked = state.interstate;
-  }
-  save(); updatePreview();
-});
-
-$("buyerState").addEventListener("change", (e) => {
-  state.buyerState = e.target.value;
-  if (state.sellerState && state.buyerState) {
-    state.interstate = state.sellerState !== state.buyerState;
-    $("interstate").checked = state.interstate;
-  }
-  save(); updatePreview();
-});
-
-$("interstate").addEventListener("change", (e) => {
-  state.interstate = e.target.checked;
-  save(); updatePreview();
-});
-
-$("addItem").addEventListener("click", () => {
-  state.items.push({ desc: "", hsn: "", qty: 1, rate: 0, gst: 18 });
-  save();
-  renderItems();
-  updatePreview();
-});
-
-$("newInvoice").addEventListener("click", () => {
-  if (!confirm("Start a new invoice? Current draft will be cleared.")) return;
-  localStorage.removeItem(STORAGE_KEY);
-  location.reload();
-});
-
-// ===== Logo Upload =====
-$("logoInput").addEventListener("change", (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    state.logo = ev.target.result;
-    $("logoPreview").src = state.logo;
-    $("logoPreview").classList.add("has-image");
-    document.querySelector(".logo-upload").classList.add("has-image");
-    save();
-    updatePreview();
+  const styleMeta = {
+    kaleido: { name: "Prismatic kaleidoscope", short: "KALEIDO" },
+    orbit: { name: "Tidal orbit study", short: "ORBITALS" },
+    lattice: { name: "Aurora flow field", short: "FLOW FIELD" },
+    bloom: { name: "Electric botanical", short: "BLOOM" }
   };
-  reader.readAsDataURL(file);
-});
 
-$("removeLogo").addEventListener("click", () => {
-  state.logo = "";
-  $("logoPreview").src = "";
-  $("logoPreview").classList.remove("has-image");
-  document.querySelector(".logo-upload").classList.remove("has-image");
-  $("logoInput").value = "";
-  save();
-  updatePreview();
-});
+  const state = {
+    style: "auto",
+    density: 68,
+    speed: 54,
+    paletteIndex: 0,
+    autoCycle: true,
+    showCursor: true,
+    playing: true,
+    phase: "drawing",
+    loop: 0,
+    completed: 0,
+    design: null,
+    queuedNew: false,
+    phaseStarted: performance.now(),
+    lastCursor: { x: 0.5, y: 0.5 },
+    size: { width: 1, height: 1, dpr: 1 }
+  };
 
-// ===== PDF Download =====
-$("downloadPdf").addEventListener("click", async () => {
-  const btn = $("downloadPdf");
-  const oldText = btn.textContent;
-  btn.textContent = "Generating…";
-  btn.disabled = true;
-  try {
-    const el = $("invoicePreview");
-    const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
-    const img = canvas.toDataURL("image/png");
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF("p", "mm", "a4");
-    const pdfW = pdf.internal.pageSize.getWidth();
-    const pdfH = (canvas.height * pdfW) / canvas.width;
-    pdf.addImage(img, "PNG", 0, 0, pdfW, pdfH);
-    pdf.save(`${state.invoiceNo || "invoice"}.pdf`);
-  } catch (err) {
-    alert("PDF generation failed: " + err.message);
-  } finally {
-    btn.textContent = oldText;
-    btn.disabled = false;
+  function randomSeed() {
+    const values = new Uint32Array(1);
+    if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(values);
+    else values[0] = Math.floor(Math.random() * 0xffffffff);
+    return values[0] || 123456789;
   }
-});
 
-$("printInvoice").addEventListener("click", () => window.print());
+  function makeRandom(seed) {
+    let value = seed >>> 0;
+    return () => {
+      value += 0x6D2B79F5;
+      let t = value;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
 
-// ===== Init =====
-populateStates();
-load();
-if (!state.invoiceDate) state.invoiceDate = new Date().toISOString().slice(0, 10);
-applyToForm();
-renderItems();
-updatePreview();
-$("year").textContent = new Date().getFullYear();
+  const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
+  const pick = (items, random) => items[Math.floor(random() * items.length)];
+
+  function rgba(hex, alpha) {
+    const value = hex.replace("#", "");
+    const r = parseInt(value.slice(0, 2), 16);
+    const g = parseInt(value.slice(2, 4), 16);
+    const b = parseInt(value.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  function addLine(ops, x1, y1, x2, y2, color, width = 1, alpha = .72, control = null) {
+    ops.push({
+      kind: "line", x1: clamp(x1), y1: clamp(y1), x2: clamp(x2), y2: clamp(y2),
+      color, width, alpha, control
+    });
+  }
+
+  function addDot(ops, x, y, color, radius = 1.2, alpha = .9) {
+    ops.push({ kind: "dot", x: clamp(x), y: clamp(y), color, radius, alpha });
+  }
+
+  function createKaleido(random, density) {
+    const ops = [];
+    const rays = Math.round(7 + density / 10);
+    const rings = Math.round(11 + density * .24);
+    const centerX = .5 + (random() - .5) * .045;
+    const centerY = .5 + (random() - .5) * .045;
+    const baseRotation = random() * Math.PI;
+    const distortion = .05 + random() * .10;
+
+    for (let ring = 0; ring < rings; ring++) {
+      const t1 = ring / rings;
+      const t2 = (ring + 1) / rings;
+      const r1 = .025 + Math.pow(t1, .78) * .43;
+      const r2 = .025 + Math.pow(t2, .78) * .43;
+      const wave = Math.sin(t1 * Math.PI * (2 + Math.floor(random() * 3))) * distortion;
+
+      for (let ray = 0; ray < rays; ray++) {
+        const a1 = baseRotation + (ray / rays) * Math.PI * 2;
+        const a2 = baseRotation + ((ray + .55 + wave) / rays) * Math.PI * 2;
+        const color = (ray + ring) % 4;
+        const x1 = centerX + Math.cos(a1) * r1;
+        const y1 = centerY + Math.sin(a1) * r1;
+        const x2 = centerX + Math.cos(a2) * r2;
+        const y2 = centerY + Math.sin(a2) * r2;
+        const bendX = centerX + Math.cos((a1 + a2) / 2) * (r1 + r2) * .54;
+        const bendY = centerY + Math.sin((a1 + a2) / 2) * (r1 + r2) * .54;
+        addLine(ops, x1, y1, x2, y2, color, .45 + (ring % 5) * .11, .35 + t1 * .52, { x: bendX, y: bendY });
+
+        if (ring % 3 === 0) {
+          const mirrorA = baseRotation - ((ray + .55 + wave) / rays) * Math.PI * 2;
+          addLine(ops, x1, y1, centerX + Math.cos(mirrorA) * r2, centerY + Math.sin(mirrorA) * r2, (color + 1) % 4, .36, .42);
+        }
+      }
+      if (ring % 4 === 0) addDot(ops, centerX, centerY, ring % 4, 1.4 + ring * .025, .65);
+    }
+    return ops;
+  }
+
+  function createOrbit(random, density) {
+    const ops = [];
+    const count = Math.round(5 + density / 13);
+    const steps = Math.round(24 + density * .22);
+    const centerX = .5 + (random() - .5) * .10;
+    const centerY = .5 + (random() - .5) * .08;
+    const tilt = (-.55 + random() * 1.1);
+
+    for (let orbit = 0; orbit < count; orbit++) {
+      const radiusX = .12 + orbit * (.025 + random() * .008);
+      const radiusY = radiusX * (.27 + random() * .48);
+      const rotation = tilt + orbit * (Math.PI / count) * .42;
+      let previous = null;
+      const start = random() * Math.PI * 2;
+      const sweep = Math.PI * (1.38 + random() * .72);
+
+      for (let step = 0; step <= steps; step++) {
+        const a = start + (step / steps) * sweep;
+        const wobble = Math.sin(a * (2 + orbit % 3) + orbit) * .013;
+        const px = Math.cos(a) * (radiusX + wobble);
+        const py = Math.sin(a) * (radiusY + wobble);
+        const x = centerX + px * Math.cos(rotation) - py * Math.sin(rotation);
+        const y = centerY + px * Math.sin(rotation) + py * Math.cos(rotation);
+        if (previous) addLine(ops, previous.x, previous.y, x, y, orbit % 4, .55 + (orbit % 3) * .18, .38 + orbit / count * .46);
+        previous = { x, y };
+      }
+      const satA = start + sweep * (.3 + random() * .45);
+      const satX = centerX + Math.cos(satA) * radiusX * Math.cos(rotation) - Math.sin(satA) * radiusY * Math.sin(rotation);
+      const satY = centerY + Math.cos(satA) * radiusX * Math.sin(rotation) + Math.sin(satA) * radiusY * Math.cos(rotation);
+      addDot(ops, satX, satY, (orbit + 2) % 4, 1.5 + random() * 1.7, .9);
+    }
+
+    for (let i = 0; i < 24 + density / 2; i++) {
+      const a = random() * Math.PI * 2;
+      const d = .03 + random() * .41;
+      addDot(ops, centerX + Math.cos(a) * d, centerY + Math.sin(a) * d * .72, Math.floor(random() * 4), .45 + random() * 1.1, .32 + random() * .4);
+    }
+    return ops;
+  }
+
+  function createLattice(random, density) {
+    const ops = [];
+    const paths = Math.round(9 + density / 8);
+    const steps = Math.round(20 + density * .22);
+    const direction = random() > .5 ? 1 : -1;
+    const phase = random() * Math.PI * 2;
+    const frequency = 1.4 + random() * 2.3;
+
+    for (let path = 0; path < paths; path++) {
+      const base = .08 + (path / Math.max(paths - 1, 1)) * .84;
+      let previous = null;
+      for (let step = 0; step <= steps; step++) {
+        const t = step / steps;
+        const wave = Math.sin(t * Math.PI * frequency + path * .52 + phase) * (.045 + .022 * Math.sin(path));
+        const drift = Math.cos(t * Math.PI * 2 + path * .37) * .024;
+        const x = direction > 0 ? t : 1 - t;
+        const y = base + wave + drift * (t - .5);
+        if (previous) {
+          const cx = (previous.x + x) / 2 + Math.sin(path + step) * .005;
+          const cy = (previous.y + y) / 2 + Math.cos(path - step) * .008;
+          addLine(ops, previous.x, previous.y, x, y, (path + Math.floor(step / 7)) % 4, .4 + (path % 4) * .11, .35 + t * .38, { x: cx, y: cy });
+        }
+        previous = { x, y };
+      }
+    }
+
+    for (let path = 0; path < Math.max(5, Math.round(paths * .55)); path++) {
+      const base = .15 + (path / Math.max(4, paths * .55 - 1)) * .7;
+      let previous = null;
+      for (let step = 0; step <= Math.round(steps * .65); step++) {
+        const t = step / Math.round(steps * .65);
+        const x = base + Math.sin(t * Math.PI * (frequency + .3) + path) * .055;
+        const y = t;
+        if (previous) addLine(ops, previous.x, previous.y, x, y, (path + 1) % 4, .32, .2 + t * .25);
+        previous = { x, y };
+      }
+    }
+    return ops;
+  }
+
+  function createBloom(random, density) {
+    const ops = [];
+    const petals = Math.round(8 + density / 11);
+    const steps = Math.round(14 + density * .16);
+    const centerX = .5 + (random() - .5) * .05;
+    const centerY = .5 + (random() - .5) * .05;
+    const spin = random() * Math.PI * 2;
+
+    for (let petal = 0; petal < petals; petal++) {
+      const a = spin + petal / petals * Math.PI * 2;
+      const length = .20 + random() * .25;
+      const width = .06 + random() * .10;
+      let previous = { x: centerX, y: centerY };
+      for (let step = 1; step <= steps; step++) {
+        const t = step / steps;
+        const swell = Math.sin(t * Math.PI) * width;
+        const radius = t * length;
+        const x = centerX + Math.cos(a) * radius + Math.cos(a + Math.PI / 2) * swell;
+        const y = centerY + Math.sin(a) * radius + Math.sin(a + Math.PI / 2) * swell;
+        addLine(ops, previous.x, previous.y, x, y, (petal + Math.floor(step / 4)) % 4, .42 + t * .48, .35 + t * .48, { x: previous.x + Math.cos(a + Math.PI / 2) * swell * .6, y: previous.y + Math.sin(a + Math.PI / 2) * swell * .6 });
+        previous = { x, y };
+      }
+      if (petal % 2 === 0) addDot(ops, previous.x, previous.y, petal % 4, 1.1 + random() * 1.6, .86);
+    }
+    for (let i = 0; i < 30 + density / 2; i++) {
+      const a = random() * Math.PI * 2;
+      const d = random() * .43;
+      addDot(ops, centerX + Math.cos(a) * d, centerY + Math.sin(a) * d, Math.floor(random() * 4), .3 + random() * 1, .2 + random() * .5);
+    }
+    return ops;
+  }
+
+  function makeOperations(type, seed) {
+    const random = makeRandom(seed);
+    if (type === "kaleido") return createKaleido(random, state.density);
+    if (type === "orbit") return createOrbit(random, state.density);
+    if (type === "lattice") return createLattice(random, state.density);
+    return createBloom(random, state.density);
+  }
+
+  function paintBase() {
+    const { width, height } = state.size;
+    const palette = palettes[state.paletteIndex];
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = palette.background;
+    ctx.fillRect(0, 0, width, height);
+
+    const primaryGlow = ctx.createRadialGradient(width * .50, height * .49, 0, width * .5, height * .49, Math.max(width, height) * .63);
+    primaryGlow.addColorStop(0, rgba(palette.glow, .40));
+    primaryGlow.addColorStop(.45, rgba(palette.glow, .12));
+    primaryGlow.addColorStop(1, rgba(palette.background, 0));
+    ctx.fillStyle = primaryGlow;
+    ctx.fillRect(0, 0, width, height);
+
+    const edgeGlow = ctx.createRadialGradient(width * .09, height * .85, 0, width * .09, height * .85, width * .55);
+    edgeGlow.addColorStop(0, rgba(palette.colors[1], .075));
+    edgeGlow.addColorStop(1, rgba(palette.colors[1], 0));
+    ctx.fillStyle = edgeGlow;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  function drawOperation(op, index) {
+    const { width, height } = state.size;
+    const colors = palettes[state.paletteIndex].colors;
+    const color = colors[op.color % colors.length];
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = op.alpha;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.shadowColor = color;
+    ctx.shadowBlur = index % 11 === 0 ? 8 : 2;
+
+    if (op.kind === "line") {
+      ctx.lineWidth = op.width;
+      ctx.beginPath();
+      ctx.moveTo(op.x1 * width, op.y1 * height);
+      if (op.control) ctx.quadraticCurveTo(op.control.x * width, op.control.y * height, op.x2 * width, op.y2 * height);
+      else ctx.lineTo(op.x2 * width, op.y2 * height);
+      ctx.stroke();
+      state.lastCursor = { x: op.x2, y: op.y2 };
+    } else {
+      ctx.beginPath();
+      ctx.arc(op.x * width, op.y * height, op.radius, 0, Math.PI * 2);
+      ctx.fill();
+      state.lastCursor = { x: op.x, y: op.y };
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  function updateCursor(click = false) {
+    if (!state.showCursor || state.phase === "clearing" || !state.playing) {
+      cursor.classList.remove("visible");
+      return;
+    }
+    const colors = palettes[state.paletteIndex].colors;
+    cursor.style.left = `${state.lastCursor.x * 100}%`;
+    cursor.style.top = `${state.lastCursor.y * 100}%`;
+    cursor.style.setProperty("--cursor-color", colors[(state.design?.operations.length || 0) % colors.length]);
+    cursor.classList.add("visible");
+    if (click) {
+      cursor.classList.remove("is-clicking");
+      // Restart the click flare animation without affecting pointer movement.
+      void cursor.offsetWidth;
+      cursor.classList.add("is-clicking");
+    }
+  }
+
+  function setRangeFill(input) {
+    const percent = ((Number(input.value) - Number(input.min)) / (Number(input.max) - Number(input.min))) * 100;
+    input.style.setProperty("--range-fill", `${percent}%`);
+  }
+
+  function setPhase(phase) {
+    state.phase = phase;
+    state.phaseStarted = performance.now();
+    const stateBox = $("canvasState");
+    stateBox.classList.toggle("is-clearing", phase === "clearing");
+    stateBox.classList.toggle("is-paused", !state.playing);
+
+    const labels = {
+      drawing: "DRAWING",
+      holding: "DESIGN COMPLETE",
+      finished: "AWAITING NEXT",
+      clearing: "CLEARING",
+      paused: "PAUSED"
+    };
+    $("stateText").textContent = labels[phase] || "DRAWING";
+  }
+
+  function updateStaticUI() {
+    const palette = palettes[state.paletteIndex];
+    $("paletteName").textContent = palette.name;
+    $("paletteDescription").textContent = palette.description;
+    $("paletteSwatches").querySelectorAll("i").forEach((swatch, index) => {
+      swatch.style.background = palette.colors[index];
+    });
+    $("densityValue").textContent = state.density;
+    $("speedValue").textContent = state.speed < 34 ? "Leisurely" : state.speed > 72 ? "Rapid" : "Balanced";
+    setRangeFill($("densityRange"));
+    setRangeFill($("speedRange"));
+    $("completedCount").textContent = state.completed;
+  }
+
+  function updateProgress() {
+    const design = state.design;
+    if (!design) return;
+    const total = design.operations.length;
+    const done = Math.min(design.index, total);
+    const percent = total ? Math.round(done / total * 100) : 0;
+    $("strokeValue").textContent = `${done.toLocaleString()} / ${total.toLocaleString()}`;
+    $("progressPercent").textContent = `${percent}%`;
+    $("progressBar").style.width = `${percent}%`;
+
+    if (state.phase === "drawing") $("progressText").textContent = `Tracing ${design.type === "lattice" ? "a living field" : "a new composition"}`;
+    else if (state.phase === "holding") $("progressText").textContent = "Letting the composition breathe";
+    else if (state.phase === "clearing") $("progressText").textContent = "Dissolving the current canvas";
+    else if (state.phase === "finished") $("progressText").textContent = "Ready when you are";
+  }
+
+  function createDesign(incrementLoop = true) {
+    const allStyles = ["kaleido", "orbit", "lattice", "bloom"];
+    const seed = randomSeed();
+    const random = makeRandom(seed);
+    const type = state.style === "auto" ? pick(allStyles, random) : state.style;
+    if (incrementLoop) state.loop += 1;
+    state.design = { seed, type, index: 0, operations: makeOperations(type, seed) };
+    state.queuedNew = false;
+    state.lastCursor = { x: .5, y: .5 };
+    paintBase();
+    setPhase("drawing");
+
+    const meta = styleMeta[type];
+    $("seedValue").textContent = seed.toString(16).toUpperCase().padStart(8, "0").slice(-6);
+    $("modeValue").textContent = meta.short;
+    $("loopValue").textContent = String(state.loop).padStart(2, "0");
+    $("designName").textContent = meta.name;
+    updateProgress();
+    updateCursor();
+  }
+
+  function queueFreshDesign() {
+    state.queuedNew = true;
+    if (!state.playing) togglePlaying(true);
+    if (state.phase !== "clearing") setPhase("clearing");
+  }
+
+  function clearFrame() {
+    const palette = palettes[state.paletteIndex];
+    const { width, height } = state.size;
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = rgba(palette.background, .12);
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  function togglePlaying(force) {
+    state.playing = typeof force === "boolean" ? force : !state.playing;
+    const playButton = $("playToggle");
+    playButton.classList.toggle("is-paused", !state.playing);
+    $("playLabel").textContent = state.playing ? "Pause studio" : "Resume studio";
+    if (!state.playing) {
+      $("canvasState").classList.add("is-paused");
+      $("stateText").textContent = "PAUSED";
+      cursor.classList.remove("visible");
+    } else {
+      $("canvasState").classList.remove("is-paused");
+      setPhase(state.phase);
+      updateCursor();
+    }
+  }
+
+  function animate(now) {
+    if (state.playing && state.design) {
+      const design = state.design;
+      if (state.phase === "drawing") {
+        const strokesPerFrame = Math.max(2, Math.round(1 + state.speed / 9));
+        const end = Math.min(design.index + strokesPerFrame, design.operations.length);
+        for (; design.index < end; design.index++) drawOperation(design.operations[design.index], design.index);
+        updateCursor(design.index % 20 === 0);
+        updateProgress();
+
+        if (design.index >= design.operations.length) {
+          state.completed += 1;
+          $("completedCount").textContent = state.completed;
+          setPhase("holding");
+          updateProgress();
+        }
+      } else if (state.phase === "holding") {
+        if (now - state.phaseStarted > 1500) {
+          if (state.autoCycle || state.queuedNew) setPhase("clearing");
+          else setPhase("finished");
+          updateProgress();
+        }
+      } else if (state.phase === "clearing") {
+        clearFrame();
+        cursor.classList.remove("visible");
+        updateProgress();
+        if (now - state.phaseStarted > 720) createDesign(true);
+      } else if (state.phase === "finished" && state.autoCycle) {
+        setPhase("clearing");
+      }
+    }
+    requestAnimationFrame(animate);
+  }
+
+  function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    state.size = { width: rect.width, height: rect.height, dpr };
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    paintBase();
+    if (state.design) {
+      // A resize starts a clean version of the same live idea rather than stretching pixels.
+      const existing = state.design;
+      state.design = { ...existing, index: 0, operations: makeOperations(existing.type, existing.seed) };
+      setPhase("drawing");
+      updateProgress();
+    }
+  }
+
+  function updateClock() {
+    $("localTime").textContent = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date());
+  }
+
+  $("densityRange").addEventListener("input", (event) => {
+    state.density = Number(event.target.value);
+    updateStaticUI();
+  });
+
+  $("speedRange").addEventListener("input", (event) => {
+    state.speed = Number(event.target.value);
+    updateStaticUI();
+  });
+
+  $("styleGrid").addEventListener("click", (event) => {
+    const button = event.target.closest(".style-card");
+    if (!button) return;
+    state.style = button.dataset.style;
+    document.querySelectorAll(".style-card").forEach((cardButton) => cardButton.classList.toggle("active", cardButton === button));
+    queueFreshDesign();
+  });
+
+  function nextPalette() {
+    state.paletteIndex = (state.paletteIndex + 1) % palettes.length;
+    updateStaticUI();
+    queueFreshDesign();
+  }
+  $("newPalette").addEventListener("click", nextPalette);
+  $("cyclePalette").addEventListener("click", nextPalette);
+
+  $("autoCycle").addEventListener("change", (event) => {
+    state.autoCycle = event.target.checked;
+    if (state.autoCycle && state.phase === "finished") queueFreshDesign();
+  });
+  $("cursorToggle").addEventListener("change", (event) => {
+    state.showCursor = event.target.checked;
+    updateCursor();
+  });
+  $("playToggle").addEventListener("click", () => togglePlaying());
+  $("clearButton").addEventListener("click", queueFreshDesign);
+  $("createButton").addEventListener("click", queueFreshDesign);
+
+  $("fullscreenButton").addEventListener("click", async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await card.requestFullscreen();
+    } catch (_) { /* Fullscreen can be unavailable in embedded previews. */ }
+  });
+  document.addEventListener("fullscreenchange", () => requestAnimationFrame(resizeCanvas));
+
+  let resizeTimer;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(resizeCanvas, 100);
+  });
+
+  updateStaticUI();
+  updateClock();
+  setInterval(updateClock, 20_000);
+  resizeCanvas();
+  createDesign(true);
+  requestAnimationFrame(animate);
+})();
