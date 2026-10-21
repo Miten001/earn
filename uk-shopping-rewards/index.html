@@ -4,6 +4,8 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="theme-color" content="#0B1220" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2064%2064%27%3E%3Crect%20width%3D%2764%27%20height%3D%2764%27%20rx%3D%2718%27%20fill%3D%27%230B1220%27%2F%3E%3Cpath%20d%3D%27M22%2027.5H42L40.2%2043.4A2.4%202.4%200%200%201%2037.8%2045.4H26.2A2.4%202.4%200%200%201%2023.8%2043.4Z%27%20fill%3D%27none%27%20stroke%3D%27%23fff%27%20stroke-width%3D%273.4%27%20stroke-linejoin%3D%27round%27%20stroke-linecap%3D%27round%27%2F%3E%3Cpath%20d%3D%27M26.6%2027v-3.1a5.4%205.4%200%200%201%2010.8%200V27%27%20fill%3D%27none%27%20stroke%3D%27%23fff%27%20stroke-width%3D%273.4%27%20stroke-linecap%3D%27round%27%2F%3E%3Cpath%20d%3D%27M32%2031.6C33%2034.3%2033.7%2035%2036.4%2036C33.7%2037%2033%2037.7%2032%2040.4C31%2037.7%2030.3%2037%2027.6%2036C30.3%2035%2031%2034.3%2032%2031.6Z%27%20fill%3D%27%23F3B743%27%2F%3E%3C%2Fsvg%3E" />
+<link rel="mask-icon" href="logo-mark.svg" color="#0B1220" />
 
 <title>UK Household Shopping Rewards | £100 Amazon Voucher Opportunity</title>
 <meta name="description" content="A UK-only consumer rewards programme. Take part in a short shopping preference questionnaire for your opportunity to be selected for a £100 Amazon e-gift card. UK residents, 18+." />
@@ -101,16 +103,27 @@
      ====================================================================== -->
 <header class="sticky top-0 z-40 border-b border-ink/10 bg-white/85 backdrop-blur-md">
   <div class="mx-auto flex max-w-8xl items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
-    <a href="#main" class="flex items-center gap-2.5" aria-label="UK Shopper Rewards — home">
-      <span class="grid h-9 w-9 place-items-center rounded-xl bg-ink text-white shadow-sm" aria-hidden="true">
-        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 7h13l1.6 8.2a2 2 0 0 1-2 2.4H6.2a2 2 0 0 1-2-1.6L3 7Z"/>
-          <path d="M3 7 2.2 4.2A2 2 0 0 0 .3 2.7"/>
-          <circle cx="8" cy="20" r="1.4"/><circle cx="16.5" cy="20" r="1.4"/>
+    <!-- CLICKABLE LOGO → routes to the same MaxBounty link as every CTA.
+         To make it scroll to the top instead, delete data-offer-link and set href="#main". -->
+    <a data-offer-link href="https://YOUR-MAXBOUNTY-TRACKING-LINK-HERE" rel="sponsored nofollow noopener"
+       class="group flex items-center gap-2.5 rounded-xl"
+       aria-label="UK Shopper Rewards — check offer availability">
+      <span class="block h-10 w-10 shrink-0 transition duration-200 group-hover:-translate-y-0.5 group-active:scale-95">
+        <svg viewBox="0 0 64 64" class="h-10 w-10 drop-shadow-sm" aria-hidden="true" focusable="false">
+          <defs>
+            <linearGradient id="brandTileA" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#1B2A47"/><stop offset="1" stop-color="#0B1220"/>
+            </linearGradient>
+          </defs>
+          <rect width="64" height="64" rx="18" fill="url(#brandTileA)"/>
+          <path d="M22 27.5H42L40.2 43.4A2.4 2.4 0 0 1 37.8 45.4H26.2A2.4 2.4 0 0 1 23.8 43.4Z"
+                fill="none" stroke="#FFFFFF" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round"/>
+          <path d="M26.6 27v-3.1a5.4 5.4 0 0 1 10.8 0V27" fill="none" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round"/>
+          <path d="M32 31.6C33 34.3 33.7 35 36.4 36C33.7 37 33 37.7 32 40.4C31 37.7 30.3 37 27.6 36C30.3 35 31 34.3 32 31.6Z" fill="#F3B743"/>
         </svg>
       </span>
-      <span class="leading-tight">
-        <span class="block text-[15px] font-extrabold tracking-tight">UK Shopper Rewards</span>
+      <span class="hidden leading-tight sm:block">
+        <span class="block text-[15px] font-extrabold tracking-tight">UK Shopper <span class="text-[#8A5A0B] transition-colors group-hover:text-brand-700">Rewards</span></span>
         <span class="block text-[11px] font-medium tracking-wide text-ink-mute">Consumer feedback programme</span>
       </span>
     </a>
@@ -120,7 +133,7 @@
         <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> UK only · 18+
       </span>
       <a data-offer-link href="https://YOUR-MAXBOUNTY-TRACKING-LINK-HERE" rel="sponsored nofollow noopener"
-         class="inline-flex items-center gap-1.5 rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-ink-soft active:scale-[.985]">
+         class="inline-flex items-center gap-1.5 rounded-xl bg-ink px-3.5 py-2.5 text-[13px] font-semibold text-white shadow-sm transition hover:bg-ink-soft active:scale-[.985] sm:px-4 sm:text-sm">
         Check Availability
         <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M12.5 6l6 6-6 6"/></svg>
       </a>
@@ -541,16 +554,23 @@
 
     <div class="grid gap-10 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
       <div>
-        <div class="flex items-center gap-2.5">
-          <span class="grid h-9 w-9 place-items-center rounded-xl bg-ink text-white" aria-hidden="true">
-            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 7h13l1.6 8.2a2 2 0 0 1-2 2.4H6.2a2 2 0 0 1-2-1.6L3 7Z"/>
-              <path d="M3 7 2.2 4.2A2 2 0 0 0 .3 2.7"/>
-              <circle cx="8" cy="20" r="1.4"/><circle cx="16.5" cy="20" r="1.4"/>
+        <a href="#main" class="group inline-flex items-center gap-2.5 rounded-xl" aria-label="UK Shopper Rewards — back to top">
+          <span class="block h-9 w-9 shrink-0 transition duration-200 group-hover:-translate-y-0.5">
+            <svg viewBox="0 0 64 64" class="h-9 w-9" aria-hidden="true" focusable="false">
+              <defs>
+                <linearGradient id="brandTileB" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#1B2A47"/><stop offset="1" stop-color="#0B1220"/>
+                </linearGradient>
+              </defs>
+              <rect width="64" height="64" rx="18" fill="url(#brandTileB)"/>
+              <path d="M22 27.5H42L40.2 43.4A2.4 2.4 0 0 1 37.8 45.4H26.2A2.4 2.4 0 0 1 23.8 43.4Z"
+                    fill="none" stroke="#FFFFFF" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round"/>
+              <path d="M26.6 27v-3.1a5.4 5.4 0 0 1 10.8 0V27" fill="none" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round"/>
+              <path d="M32 31.6C33 34.3 33.7 35 36.4 36C33.7 37 33 37.7 32 40.4C31 37.7 30.3 37 27.6 36C30.3 35 31 34.3 32 31.6Z" fill="#F3B743"/>
             </svg>
           </span>
-          <span class="text-[15px] font-extrabold tracking-tight">UK Shopper Rewards</span>
-        </div>
+          <span class="text-[15px] font-extrabold tracking-tight">UK Shopper <span class="text-[#8A5A0B]">Rewards</span></span>
+        </a>
         <p class="mt-4 max-w-sm text-[13px] leading-relaxed text-ink-mute">
           An independent consumer feedback and shopping rewards programme for UK households. We collect
           consumer opinions and, where consent is given, share relevant offers from carefully selected partners.
