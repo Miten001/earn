@@ -82,6 +82,8 @@ python clicker.py --region 100,200,700,130
 
 | Problem | Kya karo |
 |---|---|
+| **Window khulte hi band ho jati hai** | Naya `clicker.bat` download karo (purane me Windows line-ending bug tha). Naya version har error par rukta hai aur `pause` karta hai |
+| Error ki detail chahiye | Usi folder me **`clicker_log.txt`** kholo — poori traceback, Python version, OS sab save hota hai |
 | Bilkul kuch nahi hota | `python clicker.py --debug --once` chalao → `debug/` folder me png aayegi. Wo bhejo, usse pata chalega kahan atka |
 | "no_strip" / boxes na mile | `--manual` lagao aur poora CAPTCHA strip select karo |
 | Galat box click ho raha | `--dry-run` se check karo, phir `debug/` wali image bhejo (scores usme dikhte hain) |
