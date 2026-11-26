@@ -7,10 +7,10 @@
 | File | Kya hai |
 |---|---|
 | `clicker.bat` | **DOUBLE-CLICK KARO, BAS!** Python bhi auto-install kar deta hai ⭐⭐⭐ |
-| `clicker.py` | Single-file version — khud sab setup kar leta hai (Python chahiye) |
+| `clicker.py` | **Shape matching + auto-detect** — shapes/letters dono solve, browser background me bhi ⭐⭐ |
 | `index.html` | Web GUI demo (browser me chalao — practice ke liye) |
-| `cli_solver.py` | CMD-only version — sirf terminal me chalta hai, koi GUI nahi |
-| `captcha_solver.py` | GUI version — window ke saath screen automation |
+| `cli_solver.py` | CMD-only version (letter OCR wala purana) |
+| `captcha_solver.py` | GUI version (letter OCR wala purana) |
 | `requirements.txt` | Python packages (clicker.py ko iski zaroorat nahi — khud install kar leta hai) |
 
 ---
@@ -46,29 +46,36 @@ Double-click karne par ye file khud sab kar legi:
 
 ---
 
-## ⭐ SINGLE FILE Version (`clicker.py`)
+## ⭐⭐ SINGLE FILE Version (`clicker.py`) — Shape Matching + Auto-Detect
 
-**Sirf Python install hona chahiye — baaki sab ye file khud kar leti hai:**
-- 📦 Python packages (pyautogui, pillow, pytesseract) pehli baar **auto-install**
-- 🔤 Tesseract OCR (Windows) na mile to **auto-download + silent install** (winget → GitHub installer)
+**Naya version — letter OCR ki jagah SHAPE MATCHING (OpenCV):**
+- 🎨 **Shapes bhi solve** honge (zigzag, spiral, triangle...), sirf letters nahi
+- 🧭 **Layout auto-detect** — "Click" left/right/top kahin bhi ho, chalega
+- 📦 **3, 4, 5... kitne bhi boxes** hon, sab handle honge (dividers se count hota hai)
+- 🌐 **Browser background me ho to bhi** — poori screen scan karke CAPTCHA khud dhoondhta hai
+- 📦 Python packages (pyautogui, pillow, pytesseract, **opencv-python**, numpy) pehli baar **auto-install**
+- 🔤 Tesseract OCR (Windows) na mile to **auto-download + silent install**
 
 ### Use
 
-**Option A — Double-click karo:**
+**Option A — Double-click karo (auto-detect mode):**
 1. `clicker.py` file par **double-click** karo (Python installed hona chahiye)
-2. Mouse ko CAPTCHA ke **top-left corner** par le jao → **Enter** dabao
-3. Mouse ko **bottom-right corner** par le jao → **Enter** dabao
-4. ✅ Bas! "Go" aate hi sahi box par click ho jayega. Band karne ke liye `Ctrl+C` ya mouse screen corner par
+2. Tool poori screen scan karke CAPTCHA khud dhoondhega — kuch select nahi karna!
+3. ✅ "Go" aate hi sahi box par click ho jayega. Band karne ke liye `Ctrl+C` ya mouse screen corner par
 
 **Option B — CMD se:**
 ```bash
-python clicker.py
-python clicker.py --once        # ek baar find & click karke exit
-python clicker.py --pick        # naya region select karo
-python clicker.py --region 100,200,460,300
+python clicker.py                 # auto-detect (full screen)
+python clicker.py --once          # ek baar find & click karke exit
+python clicker.py --manual        # region select karke chalao (auto-detect fail ho to)
+python clicker.py --region 100,200,900,300
 ```
 
-Region `region.txt` me save ho jata hai — agle run me dobara select nahi karna padta.
+**Kaise kaam karta hai:**
+```
+Screen scan → OCR ("Click"/"Go" dhoondho) → dividers se boxes gino
+→ target shape nikalo → har box se IoU match → "Go" aate hi CLICK 🖱️
+```
 
 ---
 
@@ -162,6 +169,13 @@ python captcha_solver.py
 
 ## 🔄 Kaam kaise karta hai
 
+**Naya (clicker.py — shape matching):**
 ```
-Screen capture → OCR (target letter) → OCR (3 boxes) → match? → "Go" dikha? → CLICK 🖱️
+Screen scan → OCR ("Click"/"Go" dhoondho) → dividers se boxes gino (3/4/5...)
+→ target shape nikalo → har box se IoU match → "Go" dikha? → CLICK 🖱️
+```
+
+**Purana (cli_solver.py / captcha_solver.py — letter OCR):**
+```
+Screen capture → OCR (target letter) → OCR (boxes) → match? → "Go" dikha? → CLICK 🖱️
 ```
