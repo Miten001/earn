@@ -6,10 +6,11 @@
 
 | File | Kya hai |
 |---|---|
+| `clicker.py` | **SINGLE FILE — sabse easy!** Khud sab setup kar leta hai, double-click par chal jata hai ⭐⭐ |
 | `index.html` | Web GUI demo (browser me chalao — practice ke liye) |
-| `cli_solver.py` | **CMD-only version** — sirf terminal me chalta hai, koi GUI nahi ⭐ |
+| `cli_solver.py` | CMD-only version — sirf terminal me chalta hai, koi GUI nahi |
 | `captcha_solver.py` | GUI version — window ke saath screen automation |
-| `requirements.txt` | Python packages |
+| `requirements.txt` | Python packages (clicker.py ko iski zaroorat nahi — khud install kar leta hai) |
 
 ---
 
@@ -26,7 +27,33 @@ python3 -m http.server 8000
 
 ---
 
-## ⌨️ CMD-Only Version (`cli_solver.py`) — sabse easy ⭐
+## ⭐ SINGLE FILE Version (`clicker.py`) — bina download ke chal jaye!
+
+**Sirf Python install hona chahiye — baaki sab ye file khud kar leti hai:**
+- 📦 Python packages (pyautogui, pillow, pytesseract) pehli baar **auto-install**
+- 🔤 Tesseract OCR (Windows) na mile to **auto-download + silent install** (winget → GitHub installer)
+
+### Use
+
+**Option A — Double-click karo:**
+1. `clicker.py` file par **double-click** karo (Python installed hona chahiye)
+2. Mouse ko CAPTCHA ke **top-left corner** par le jao → **Enter** dabao
+3. Mouse ko **bottom-right corner** par le jao → **Enter** dabao
+4. ✅ Bas! "Go" aate hi sahi box par click ho jayega. Band karne ke liye `Ctrl+C` ya mouse screen corner par
+
+**Option B — CMD se:**
+```bash
+python clicker.py
+python clicker.py --once        # ek baar find & click karke exit
+python clicker.py --pick        # naya region select karo
+python clicker.py --region 100,200,460,300
+```
+
+Region `region.txt` me save ho jata hai — agle run me dobara select nahi karna padta.
+
+---
+
+## ⌨️ CMD-Only Version (`cli_solver.py`)
 
 Koi GUI window nahi — sirf CMD/terminal me chalta hai. Sab output terminal me print hota hai.
 
