@@ -3,3 +3,5 @@ __pycache__/
 debug/
 region.txt
 clicker_log.txt
+launcher_log.txt
+layout_cache.json

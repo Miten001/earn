@@ -56,6 +56,10 @@ aur shapes **patli colored lines** (blue/green/red) se bante hain.
 - 🧹 **Dots/dashes noise ignore** — morphology se sirf bold shape bachta hai
 - 🔄 **Rotation tolerant** — target shape box me ghumaya hua ho to bhi match ho jata hai
 - 🌗 **Adaptive borders** — Otsu + 6 thresholds (light/antialiased borders, chhota zoom — sab par kaam)
+- 🎯 **Smart auto-detect** — page par jitne bhi "Click" words hain (ads me bhi), sab check karke
+  wahi chunta hai jiske paas **asli strip + "Go"** hai — `--manual` ki zaroorat nahi
+- ⚡ **Fast** — ek baar locate, phir ~15 ms/frame (Go blue-blob se, OCR nahi);
+  `layout_cache.json` se agli baar **instant start**
 - 🧭 **Layout auto-detect** — "Click" cell, boxes aur "Go" khud pehchanta hai
 - 🔢 **3, 4, 5... boxes** — dividers se count hota hai
 - 🌐 **Browser background me bhi** — poori screen scan karta hai, window focus ki zaroorat nahi
@@ -116,7 +120,7 @@ Dono usi folder me bante hain jahan `clicker.py` hai.
 | Problem | Kya karo |
 |---|---|
 | **Click nahi ho raha** | `--click-test` chalao (Notepad khol ke) — clicks kaam kar rahe hain ya nahi pata chalega. Phir `--no-wait-go` ya `--go-timeout 3` try karo |
-| **`no_strip` — boxes detect na hue** | Tool adaptive hai (Otsu + 6 thresholds), phir bhi na mile to `--manual` se poora strip select karo. Log me `reason:` line bhi aati hai |
+| **`no_strip` — boxes detect na hue** | `layout_cache.json` delete karke dobara chalao (agar page layout badla ho). Phir bhi na ho to `--manual` |
 | **Window khulte hi band ho jati hai** | Naya `clicker.bat` use karo (CRLF + har path par pause). Ya CMD me: `cmd /k python clicker.py --debug` — window kabhi band nahi hogi |
 | Error ki detail chahiye | Usi folder me **`clicker_log.txt`** kholo — poori traceback, Python version, OS sab save hota hai |
 | Bilkul kuch nahi hota | `python clicker.py --debug --once` chalao → `debug/` folder me png aayegi. Wo bhejo, usse pata chalega kahan atka |
