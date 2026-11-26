@@ -207,9 +207,15 @@ class Screen:
                 self.scale = shot.size[0] / float(sw)
         except Exception:
             self.scale = 1.0
+        try:
+            w, h = pyautogui.screenshot().size
+        except Exception:
+            w = h = 0
         if abs(self.scale - 1.0) > 0.05:
-            log(f"{C.YELLOW}🖥️  Display scaling detect hui: {self.scale:.2f}x "
+            log(f"{C.YELLOW}🖥️  Screen {w}x{h} px, display scaling {self.scale:.2f}x "
                 f"(clicks adjust ho jayenge){C.RESET}")
+        else:
+            log(f"🖥️  Screen {w}x{h} px, scaling 1.0x")
 
     def grab(self):
         img = pyautogui.screenshot().convert('RGB')
@@ -316,62 +322,70 @@ def _group_line_positions(flags, min_gap=4):
     return groups
 
 
-def detect_strip(gray, click_w):
-    """
-    'Click' word ke aas-paas CAPTCHA strip dhoondho.
-    Return: (cells, strip_rect)  cells = [(x1,y1,x2,y2), ...] left se right
-    """
+STRIP_FAIL = ''   # aakhri fail ka reason (log me dikhta hai)
+
+
+def _thin_hlines(mask_rows, wy0, min_frac=0.5, max_thick=4):
+    """Row-profile se patli lines nikalo (moti dark bars ignore)."""
+    out, i = [], 0
+    while i < len(mask_rows):
+        if mask_rows[i] > min_frac:
+            j = i
+            while j < len(mask_rows) and mask_rows[j] > min_frac:
+                j += 1
+            if 1 <= (j - i) <= max_thick:
+                out.append(int(round(wy0 + (i + j - 1) / 2.0)))
+            i = j
+        else:
+            i += 1
+    return out
+
+
+def _strip_with_threshold(gray, click_w, thr):
+    """Ek threshold se strip dhoondhne ki koshish. Return (cells, strip)."""
     H, W = gray.shape
-    th = max(8, int(click_w['h']))
+    th = max(9, int(click_w['h']))
     cx = int(click_w['x'] + click_w['w'] / 2)
     cy = int(click_w['y'] + click_w['h'] / 2)
 
-    # 1) Horizontal borders — strip ki patli lines (moti dark bars ignore)
-    wx0 = max(0, cx - int(10 * th)); wx1 = min(W, cx + int(5 * th))
+    # 1) Horizontal borders (patli lines hi)
+    wx0 = max(0, cx - int(10 * th)); wx1 = min(W, cx + int(6 * th))
     wy0 = max(0, cy - int(8 * th)); wy1 = min(H, cy + int(8 * th))
     sub = gray[wy0:wy1, wx0:wx1]
     if sub.size == 0:
         return [], None
-    rows = (sub < 125).mean(axis=1)
+    rows = (sub < thr).mean(axis=1)
 
-    # patli lines = groups jinki thickness <= 4 px (browser bar 8px+ hata do)
-    thin = []
-    i = 0
-    while i < len(rows):
-        if rows[i] > 0.5:
-            j = i
-            while j < len(rows) and rows[j] > 0.5:
-                j += 1
-            if 1 <= (j - i) <= 4:
-                thin.append(int(round(wy0 + (i + j - 1) / 2.0)))
-            i = j
-        else:
-            i += 1
-    if len(thin) < 2:
+    top = bottom = None
+    for need in (0.5, 0.4, 0.3):
+        thin = _thin_hlines(rows, wy0, need)
+        above = [y for y in thin if y < cy]
+        below = [y for y in thin if y > cy]
+        if above and below:
+            top = max(above)
+            cands = [y for y in below if y > top + 2.0 * th]
+            bottom = min(cands) if cands else max(below)
+            break
+    if top is None or bottom is None:
+        return [], None
+    if bottom - top < 2.2 * th:
+        # text ke andar ki lines mili — band bahut chhota hai, skip
         return [], None
 
-    # Click text ke sabse nazdeek upar/niche wali lines = strip ke borders
-    above = [y for y in thin if y < cy]
-    below = [y for y in thin if y > cy]
-    if not above or not below:
-        return [], None
-    top = max(above)          # text ke just upar
-    bottom = min([y for y in below if y > top + 2.0 * th], default=None)
-    if bottom is None:
-        bottom = max(below)
-    if bottom - top < 2.5 * th:
-        return [], None
-
-    # 2) Vertical dividers (poori screen me, sirf band ke andar)
+    # 2) Vertical dividers (band ke andar, poori chaudai par)
     band = gray[top + 2:bottom - 1, :]
     if band.size == 0:
         return [], None
-    cols = (band < 125).mean(axis=0)
-    dividers = _group_line_positions(cols > 0.75)
+    cols = (band < thr).mean(axis=0)
+    dividers = []
+    for need in (0.75, 0.6, 0.5):
+        dividers = _group_line_positions(cols > need)
+        if len(dividers) >= 2:
+            break
     if len(dividers) < 2:
         return [], None
 
-    # 3) Click wale cell se start karke chain banao
+    # 3) Click wale cell se chain
     pair = None
     for i in range(len(dividers) - 1):
         if dividers[i] <= cx <= dividers[i + 1]:
@@ -379,20 +393,127 @@ def detect_strip(gray, click_w):
             break
     if pair is None:
         return [], None
-
     cell_w = dividers[pair + 1] - dividers[pair]
     if cell_w < 0.6 * th:
         return [], None
+
     lo, hi = pair, pair + 1
-    while lo - 1 >= 0 and 0.55 * cell_w <= dividers[lo] - dividers[lo - 1] <= 1.7 * cell_w:
+    while lo - 1 >= 0 and 0.55 * cell_w <= dividers[lo] - dividers[lo - 1] <= 1.75 * cell_w:
         lo -= 1
-    while hi + 1 < len(dividers) and 0.55 * cell_w <= dividers[hi + 1] - dividers[hi] <= 1.7 * cell_w:
+    while hi + 1 < len(dividers) and 0.55 * cell_w <= dividers[hi + 1] - dividers[hi] <= 1.75 * cell_w:
         hi += 1
 
     cells = [(dividers[k] + 2, top + 3, dividers[k + 1] - 2, bottom - 2)
              for k in range(lo, hi)]
     strip = (dividers[lo], top, dividers[hi], bottom)
     return cells, strip
+
+
+def _fallback_cells(gray, click_w, thr):
+    """
+    Last resort: dividers na mile to graph-paper cell width (1.4 x height)
+    maan kar cells banao — Click cell se left ki taraf.
+    """
+    H, W = gray.shape
+    th = max(9, int(click_w['h']))
+    cx = int(click_w['x'] + click_w['w'] / 2)
+    cy = int(click_w['y'] + click_w['h'] / 2)
+
+    # horizontal band (dono thresholds try)
+    for t in (thr, 150, 170):
+        wx0 = max(0, cx - int(10 * th)); wx1 = min(W, cx + int(6 * th))
+        wy0 = max(0, cy - int(8 * th)); wy1 = min(H, cy + int(8 * th))
+        sub = gray[wy0:wy1, wx0:wx1]
+        if sub.size == 0:
+            continue
+        rows = (sub < t).mean(axis=1)
+        thin = _thin_hlines(rows, wy0, 0.4)
+        above = [y for y in thin if y < cy]
+        below = [y for y in thin if y > cy]
+        if not above or not below:
+            continue
+        top = max(above)
+        cands = [y for y in below if y > top + 2.0 * th]
+        bottom = min(cands) if cands else max(below)
+        if bottom - top < 2.2 * th:
+            continue
+
+        cell_h = bottom - top
+        cell_w = int(round(1.42 * cell_h))
+        if cell_w < 20:
+            continue
+        # Click cell ka approx right edge
+        click_right = cx + int(cell_w * 0.4)
+        left_limit = max(0, click_right - 6 * cell_w)
+        band = gray[top + 2:bottom - 1, :]
+        cols = (band < 180).mean(axis=0)
+        # strip ka left border: koi bhi column jo kaafi bharose se dark ho
+        strong = [x for x in range(left_limit, max(left_limit + 1, cx - int(0.5 * cell_w)))
+                  if cols[x] > 0.55]
+        left = min(strong) if strong else max(0, cx - 3 * cell_w - int(0.5 * cell_w))
+        n = max(1, int(round((click_right - left) / float(cell_w))))
+        n = min(n, 8)
+        cells = []
+        for k in range(n):
+            x1 = left + k * cell_w
+            x2 = x1 + cell_w
+            cells.append((int(x1) + 2, top + 3, int(x2) - 2, bottom - 2))
+        if len(cells) >= 2:
+            return cells, (left, top, left + n * cell_w, bottom)
+    return [], None
+
+
+def detect_strip(gray, click_w):
+    """
+    'Click' word ke aas-paas CAPTCHA strip dhoondho.
+    Adaptive: kai thresholds + Otsu try hote hain (light/antialiased borders
+    par bhi kaam kare), sab fail ho to graph-paper fallback.
+    """
+    global STRIP_FAIL
+    th = max(9, int(click_w['h']))
+    cx = int(click_w['x'] + click_w['w'] / 2)
+    cy = int(click_w['y'] + click_w['h'] / 2)
+
+    # thresholds: Otsu (local) + kuch absolute
+    levels = []
+    try:
+        wx0 = max(0, cx - int(10 * th)); wx1 = min(gray.shape[1], cx + int(6 * th))
+        wy0 = max(0, cy - int(8 * th)); wy1 = min(gray.shape[0], cy + int(8 * th))
+        patch = gray[wy0:wy1, wx0:wx1]
+        if patch.size:
+            otsu, _ = cv2.threshold(patch, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            levels.append(int(otsu))
+    except Exception:
+        pass
+    for t in (125, 150, 110, 165, 95, 180):
+        if t not in levels:
+            levels.append(t)
+
+    best = None
+    for thr in levels:
+        cells, strip = _strip_with_threshold(gray, click_w, thr)
+        if not cells:
+            continue
+        n = len(cells)
+        if n < 2 or n > 9:
+            continue
+        score = (min(n, 6), strip[3] - strip[1])   # zyada cells + lambi strip
+        if best is None or score > best[0]:
+            best = (score, cells, strip, thr)
+
+    if best is not None:
+        STRIP_FAIL = f'thr={best[3]}'
+        return best[1], best[2]
+
+    # last resort
+    for thr in levels[:3]:
+        cells, strip = _fallback_cells(gray, click_w, thr)
+        if cells:
+            STRIP_FAIL = f'fallback (thr={thr})'
+            return cells, strip
+
+    STRIP_FAIL = 'lines/dividers nahi mile (thr try kiye: ' + ','.join(map(str, levels[:4])) + ')'
+    return [], None
 
 
 def cell_has_word(cell, word, pad=4):
@@ -617,6 +738,23 @@ def save_debug(frame_rgb, res, tag=''):
     out = np.vstack([vis, panel])
     fname = os.path.join(DEBUG_DIR, f'debug_{tag}_{time.strftime("%H%M%S")}.png')
     cv2.imwrite(fname, out)
+
+    # cells na mile to 'Click' ke aas-paas ka zoom crop bhi save karo
+    if not res.get('cells') and res.get('click') is not None:
+        cw = res['click']
+        th = max(9, int(cw['h']))
+        h_, w_ = arr.shape[:2]
+        x0 = max(0, int(cw['x'] - 22 * th)); x1 = min(w_, int(cw['x'] + 14 * th))
+        y0 = max(0, int(cw['y'] - 6 * th)); y1 = min(h_, int(cw['y'] + 10 * th))
+        if x1 - x0 > 20 and y1 - y0 > 20:
+            crop = arr[y0:y1, x0:x1]
+            big = cv2.resize(crop, None, fx=2, fy=2, interpolation=cv2.INTER_LANCZOS4)
+            big = cv2.cvtColor(big, cv2.COLOR_RGB2BGR)
+            cv2.putText(big, "Click yahan mila - yahi area hai", (8, 24),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            fname2 = os.path.join(DEBUG_DIR, f'debug_{tag}_area_{time.strftime("%H%M%S")}.png')
+            cv2.imwrite(fname2, big)
+            return fname + ' + ' + fname2
     return fname
 
 
@@ -737,6 +875,8 @@ def solve_now(screen, region, once=True, dry_run=False, debug=False):
         return False
     if st == 'no_strip':
         log(f"{C.RED}❌ Strip/boxes detect na hue{C.CYAN} → --manual se region select karo{C.RESET}")
+        if STRIP_FAIL:
+            log(f"   reason: {STRIP_FAIL}")
         if debug:
             log('   debug: ' + str(save_debug(frame, res, 'nostrip')))
         return False
@@ -787,7 +927,8 @@ def run_auto(screen, region, dry_run=False, debug=False):
                 res = analyse(frame, region=region)
                 if res['status'] in BAD_STATES:
                     if last_state != res['status']:
-                        log(f"{C.YELLOW}👀 {res['status']}{STATE_HINT.get(res['status'], '')}{C.RESET}")
+                        reason = f" [{STRIP_FAIL}]" if res['status'] == 'no_strip' and STRIP_FAIL else ''
+                        log(f"{C.YELLOW}👀 {res['status']}{STATE_HINT.get(res['status'], '')}{reason}{C.RESET}")
                         last_state = res['status']
                         if debug:
                             log('   debug: ' + str(save_debug(frame, res, res['status'])))
