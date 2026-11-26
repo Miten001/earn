@@ -46,7 +46,7 @@ if os.name == 'nt':
     os.system('')  # Windows CMD me ANSI colors
 
 CONFIG = {
-    "scan_interval": 0.45,
+    "scan_interval": 0.3,
     "click_delay": 0.25,
     "min_confidence": 0.22,     # isse kam = "pata nahi" (log me warning)
     "clicks": 1,                # ek cell par kitne clicks
@@ -58,6 +58,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REGION_FILE = os.path.join(SCRIPT_DIR, 'region.txt')
 DEBUG_DIR = os.path.join(SCRIPT_DIR, 'debug')
 LOG_FILE = os.path.join(SCRIPT_DIR, 'clicker_log.txt')
+LAYOUT_CACHE = os.path.join(SCRIPT_DIR, 'layout_cache.json')
 
 pyautogui = Image = pytesseract = cv2 = np = None
 
@@ -210,9 +211,11 @@ class Screen:
         except Exception:
             self.scale = 1.0
         try:
-            w, h = pyautogui.screenshot().size
+            shot2 = pyautogui.screenshot()
+            w, h = shot2.size
         except Exception:
             w = h = 0
+        self.shot_w, self.shot_h = w, h
         if abs(self.scale - 1.0) > 0.05:
             log(f"{C.YELLOW}🖥️  Screen {w}x{h} px, display scaling {self.scale:.2f}x "
                 f"(clicks adjust ho jayenge){C.RESET}")
@@ -518,6 +521,53 @@ def detect_strip(gray, click_w):
     return [], None
 
 
+def find_captcha_layout(gray, words):
+    """
+    Page par kai 'Click' ho sakte hain (ads me bhi). Har candidate ke liye
+    strip dhoondhne ki koshish karo — jo asli CAPTCHA hai wahi lines dega.
+    Return: (click_word, cells, strip, n_candidates)
+    """
+    cands = []
+    for w in words:
+        t = _clean(w['text'])
+        if 'click' in t and w['h'] >= 6:
+            cands.append(w)
+    if not cands:
+        return None, [], None, 0
+
+    gos = [w for w in words
+           if _clean(w['text']) in ('go', 'g0')
+           or (_clean(w['text']).startswith('go') and len(_clean(w['text'])) <= 3)]
+
+    # pehle wahi candidates jinke paas 'Go' hai (CAPTCHA me Click+Go paas hote hain),
+    # phir chhote text wale (ad text bada hota hai)
+    scored = []
+    for c in cands:
+        ccx, ccy = c['x'] + c['w'] / 2, c['y'] + c['h'] / 2
+        d = 1e9
+        for g in gos:
+            d = min(d, abs(g['x'] + g['w'] / 2 - ccx) + abs(g['y'] + g['h'] / 2 - ccy))
+        near_go = 1 if d < 16 * max(8, c['h']) else 0
+        scored.append((near_go, -c['h'], -d, c))
+    scored.sort(key=lambda t: (t[0], t[1], t[2]), reverse=True)
+
+    best = None
+    for _, _, _, c in scored:
+        cells, strip = detect_strip(gray, c)
+        if not cells:
+            continue
+        has_go = any(cell_has_word(cc, g) for cc in cells for g in gos)
+        n = len(cells)
+        score = (1 if has_go else 0, 1 if 3 <= n <= 7 else 0, n * 100 - int(c['h']))
+        if best is None or score > best[0]:
+            best = (score, c, cells, strip)
+        if has_go and 3 <= n <= 7:
+            break          # pehla hi pakka candidate -> ruk jao (fast)
+    if best is None:
+        return None, [], None, len(cands)
+    return best[1], best[2], best[3], len(cands)
+
+
 def cell_has_word(cell, word, pad=4):
     if word is None:
         return False
@@ -621,18 +671,27 @@ def analyse(frame_rgb, region=None, words=None, go_required=True,
         arr = arr[max(0, y):y + h, max(0, x):x + w]
     gray = cv2.cvtColor(arr, cv2.COLOR_RGB2GRAY)
 
+    pre_cells = pre_strip = None
+    n_cand = 0
     if click_word is not None:
         click_w, go_w = click_word, None
         words = words or []
     else:
         if words is None:
             words = locate_words(Image.fromarray(arr))
-        click_w = find_word(words, 'click')
         go_w = find_word_exact(words, 'go', min_conf_h=10)
+        # saare 'click' candidates me se wahi lo jo asli strip deta hai
+        click_w, pre_cells, pre_strip, n_cand = find_captcha_layout(gray, words)
+        if click_w is None:
+            return {'status': 'no_click' if n_cand == 0 else 'no_strip',
+                    'words': words, 'n_candidates': n_cand}
     if click_w is None:
         return {'status': 'no_click', 'words': words}
 
-    cells, strip = detect_strip(gray, click_w)
+    if pre_cells:
+        cells, strip = pre_cells, pre_strip
+    else:
+        cells, strip = detect_strip(gray, click_w)
     if not cells:
         return {'status': 'no_strip', 'click': click_w, 'go': go_w, 'words': words}
 
@@ -771,7 +830,7 @@ def print_scores(res):
         log(f"{C.YELLOW}⚠️  Confidence kam hai — shayad sahi box na ho{C.RESET}")
 
 
-def go_visible(frame_rgb, strip, detect_fn=None):
+def go_visible(frame_rgb, strip, detect_fn=None, allow_ocr=True):
     """
     'Go' dikh raha hai? 3 tareeke:
       1) chhota-crop OCR (3 settings)
@@ -786,9 +845,17 @@ def go_visible(frame_rgb, strip, detect_fn=None):
     if x1 - x0 < 10 or y1 - y0 < 10:
         return False
 
+    # 🔵 PEHLE blue blob (bahut fast ~2ms) — 'Go' yahin pakda jata hai
+    if _blue_go_like(arr[y0:y1, x0:x1], h):
+        return True
+
+    if not allow_ocr:
+        return False
+
+    # OCR sirf tab jab blob na mile (slow)
     crop = Image.fromarray(arr[y0:y1, x0:x1])
     fn = detect_fn or ocr_words
-    for kw in ({'upscale': 2, 'psm': 11}, {'upscale': 3, 'psm': 6}, {'upscale': 3, 'psm': 11}):
+    for kw in ({'upscale': 2, 'psm': 11},):
         try:
             words = fn(crop, **kw)
         except TypeError:
@@ -799,8 +866,7 @@ def go_visible(frame_rgb, strip, detect_fn=None):
             t = _clean(w['text'])
             if t in ('go', 'g0') or (t.startswith('go') and len(t) <= 3):
                 return True
-
-    return _blue_go_like(arr[y0:y1, x0:x1], h)
+    return False
 
 
 def _blue_go_like(sub, h):
@@ -1002,83 +1068,126 @@ STATE_HINT = {
 }
 
 
+def load_layout_cache(screen=None):
+    """Pichli baar ka layout — isse start hote hi kaam shuru (full OCR nahi)."""
+    try:
+        with open(LAYOUT_CACHE) as f:
+            d = json.load(f)
+        click = d.get('click')
+        if not isinstance(click, dict):
+            return None
+        if screen is not None and d.get('size'):
+            sw, sh = d['size']
+            if abs(sw - screen.shot_w) > 4 or abs(sh - screen.shot_h) > 4:
+                return None       # resolution badal gaya -> cache bekaar
+        return {'click': click, 'box_rel': d.get('box_rel')}
+    except Exception:
+        return None
+
+
+def save_layout_cache(layout, screen=None):
+    try:
+        d = {'click': layout['click'], 'box_rel': layout.get('box_rel'),
+             'saved': time.strftime('%Y-%m-%d %H:%M:%S')}
+        if screen is not None:
+            d['size'] = [screen.shot_w, screen.shot_h]
+        with open(LAYOUT_CACHE, 'w') as f:
+            json.dump(d, f)
+    except Exception:
+        pass
+
+
 def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
     mode = 'region' if region else 'full-screen auto-detect'
-    print(f"\n{C.BLUE}{C.BOLD}👀 Monitor ON ({mode}) — 'Go' dikhte hi click{C.RESET}")
+    print(f"{C.BLUE}{C.BOLD}👀 Monitor ON ({mode}) — 'Go' dikhte hi click{C.RESET}")
     print("   Stop: Ctrl+C  ya  mouse corner par\n")
 
-    layout = None          # cached 'Click' word (fast tracking ke liye)
+    layout = None
+    if region is None:
+        cached = load_layout_cache(screen)
+        if cached:
+            layout = cached
+            log(f"{C.CYAN}⚡ Saved layout se start (fast) — full OCR skip{C.RESET}")
+
     last_state = ''
     last_click = 0.0
     wait_since = time.time()
     stable_cell, stable_count = None, 0
     last_nogo_log = 0.0
+    bad_streak = 0
 
     while True:
         try:
             frame = screen.grab()
 
             if layout is None:
-                # --- LOCATE: poori screen OCR (slow, sirf ek baar) ---
-                res = analyse(frame, region=region, go_required=go_required,
-                              check_go=True)
+                # ---- AUTO-DETECT: saare 'Click' candidates me se asli CAPTCHA ----
+                res = analyse(frame, region=region, go_required=go_required, check_go=True)
                 if res['status'] in BAD_STATES:
+                    bad_streak += 1
                     if last_state != res['status']:
-                        reason = f" [{STRIP_FAIL}]" if res['status'] == 'no_strip' and STRIP_FAIL else ''
-                        log(f"{C.YELLOW}👀 {res['status']}{STATE_HINT.get(res['status'], '')}{reason}{C.RESET}")
+                        reason = (f" [{STRIP_FAIL}]"
+                                  if res['status'] == 'no_strip' and STRIP_FAIL else '')
+                        extra = ''
+                        if res.get('n_candidates'):
+                            extra = f" ({res['n_candidates']} 'click' words mile, koi strip nahi bani)"
+                        log(f"{C.YELLOW}👀 {res['status']}"
+                            f"{STATE_HINT.get(res['status'], '')}{reason}{extra}{C.RESET}")
                         last_state = res['status']
                         if debug:
                             log('   debug: ' + str(save_debug(frame, res, res['status'])))
-                    time.sleep(CONFIG['scan_interval'])
+                    bad_streak = 0
+                    time.sleep(CONFIG['scan_interval'] if last_state != 'no_click' else 0.7)
                     continue
+
                 layout = {'click': res['click'], 'box_rel': res.get('box_rel')}
+                save_layout_cache(layout, screen)
                 log(f"{C.GREEN}✅ CAPTCHA mil gaya — {len(res['scores'])} boxes{C.RESET}")
                 print_scores(res)
                 if debug:
                     log('   debug: ' + str(save_debug(frame, res, 'locate')))
             else:
-                # --- TRACK: cached layout se fast (OCR full-screen nahi) ---
+                # ---- FAST TRACK: cached layout, ~10ms/frame ----
                 res = analyse(frame, region=region, click_word=layout['click'],
                               box_rel=layout.get('box_rel'), check_go=True,
                               go_required=go_required)
                 if res['status'] in BAD_STATES:
-                    if last_state != res['status']:
-                        log(f"{C.YELLOW}👀 layout kho gaya — dobara dhoondh raha hoon{C.RESET}")
-                        last_state = res['status']
-                    layout = None
+                    bad_streak += 1
+                    if bad_streak >= 3:
+                        log(f"{C.CYAN}🔄 Layout nahi mila — dobara auto-detect{C.RESET}")
+                        layout = None
+                        bad_streak = 0
                     time.sleep(CONFIG['scan_interval'])
                     continue
+                bad_streak = 0
 
             if res['status'] == 'wait_go':
                 if last_state != 'wait_go':
                     log(f"{C.YELLOW}⏳ 'Go' ka intezaar... "
-                        f"({CONFIG['go_timeout']:.0f}s baad phir bhi click karunga){C.RESET}")
+                        f"({CONFIG['go_timeout']:.0f}s baad phir bhi click){C.RESET}")
                     last_state = 'wait_go'
                     wait_since = time.time()
 
-                # 'Go' kabhi na mile to bhi click karo (warna kuch nahi hota)
                 waited = time.time() - wait_since
                 if waited > CONFIG['go_timeout'] and (time.time() - last_click) > 2.5:
                     if (time.time() - last_nogo_log) > 5.0:
                         log(f"{C.YELLOW}⚠️  'Go' nahi mila ({waited:.0f}s) — "
-                            f"phir bhi Box{res['best_local']+1} par click kar raha hoon{C.RESET}")
+                            f"phir bhi Box{res['best_local']+1} par click{C.RESET}")
                         last_nogo_log = time.time()
                     if debug:
                         log('   debug: ' + str(save_debug(frame, res, 'nogo')))
-                    if not dry_run:
-                        click_cell(screen, res['best_cell'], region)
-                        last_click = time.time()
-                        time.sleep(1.2)
-                        layout = None
-                    else:
+                    if dry_run:
                         log(f"{C.CYAN}🧪 dry-run: click roka gaya{C.RESET}")
-                        last_click = time.time()
+                    else:
+                        click_cell(screen, res['best_cell'], region, CONFIG['clicks'])
+                        time.sleep(1.2)
+                    last_click = time.time()
                     wait_since = time.time()
                     last_state = ''
                 time.sleep(CONFIG['scan_interval'])
                 continue
 
-            # --- 'Go' mila: 2 frame stable hone par click (misclick se bacho) ---
+            # ---- 'Go' mila: 2 frame stable par click ----
             if res['best_local'] == stable_cell:
                 stable_count += 1
             else:
@@ -1094,9 +1203,10 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
                 else:
                     click_cell(screen, res['best_cell'], region, CONFIG['clicks'])
                 last_click = time.time()
-                time.sleep(1.2)        # page settle hone do
-                layout = None          # next captcha ke liye dobara locate
+                # layout rakho: agla CAPTCHA wahi jagah hota hai -> fast
+                time.sleep(1.5)
                 stable_cell, stable_count = None, 0
+                last_state = ''
 
         except pyautogui.FailSafeException:
             raise
