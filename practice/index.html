@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f7ef">
+  <title>Captcha Lab — Timed Practice</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="practice.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell top-inner">
+      <div class="brand"><span class="brand-icon" aria-hidden="true">✳</span> Captcha<span class="accent">Lab</span></div>
+      <span class="offline"><i></i> LOCAL SIMULATION</span>
+    </div>
+  </header>
+  <main class="shell">
+    <section class="hero" aria-labelledby="title">
+      <div class="hero-content">
+        <p class="eyebrow"><span></span> TIMED PRACTICE</p>
+        <h1 id="title">Beat the <em>clock.</em></h1>
+        <p class="intro">Match the symbol in each row before its timer hits zero. At zero, the practice board clicks the correct tile for you.</p>
+      </div>
+      <div class="hero-art" aria-hidden="true"><span class="art-plus one">+</span><span class="art-plus two">+</span><span class="art-plus three">+</span><div class="art-tile">b<span>✦</span></div></div>
+    </section>
+    <section class="board" aria-labelledby="board-title">
+      <header class="board-header">
+        <div>
+          <p class="eyebrow board-kicker">THE PRACTICE BOARD</p>
+          <h2 id="board-title">Challenge queue</h2>
+        </div>
+        <button class="reset" id="reset" type="button"><span aria-hidden="true">↻</span> New round</button>
+      </header>
+      <div class="column-heads" aria-hidden="true"><span>CHALLENGE</span><span>FIND THE MATCH</span><span>TIME LEFT</span></div>
+      <div id="challenges"></div>
+      <noscript><p class="no-script">Enable JavaScript to use the practice board.</p></noscript>
+      <footer class="board-footer"><span class="board-info" id="progress" role="status">0 / 3 completed</span><span class="legend"><i></i> Correct match</span></footer>
+    </section>
+    <footer class="page-footer"><span>Practice only · All challenges are generated on this page.</span><span>Welcome, Miten</span></footer>
+  </main>
+  <template id="challenge-template">
+    <section class="challenge">
+      <div class="round-label"><h3></h3><p class="status">In progress</p></div>
+      <div class="strip">
+        <div class="choices"></div>
+        <div class="target"><span>MATCH</span><b></b></div>
+      </div>
+      <div class="time"><span class="count" role="timer"></span><div class="track" aria-hidden="true"><span></span></div></div>
+    </section>
+  </template>
+</body>
+</html>
