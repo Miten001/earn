@@ -6,7 +6,8 @@
 
 | File | Kya hai |
 |---|---|
-| `clicker.py` | **SINGLE FILE — sabse easy!** Khud sab setup kar leta hai, double-click par chal jata hai ⭐⭐ |
+| `clicker.bat` | **DOUBLE-CLICK KARO, BAS!** Python bhi auto-install kar deta hai ⭐⭐⭐ |
+| `clicker.py` | Single-file version — khud sab setup kar leta hai (Python chahiye) |
 | `index.html` | Web GUI demo (browser me chalao — practice ke liye) |
 | `cli_solver.py` | CMD-only version — sirf terminal me chalta hai, koi GUI nahi |
 | `captcha_solver.py` | GUI version — window ke saath screen automation |
@@ -27,7 +28,25 @@ python3 -m http.server 8000
 
 ---
 
-## ⭐ SINGLE FILE Version (`clicker.py`) — bina download ke chal jaye!
+## ⭐⭐⭐ DOUBLE-CLICK Version (`clicker.bat`) — sabse easy!
+
+**Sirf `clicker.bat` file download karo aur double-click karo — bas!**
+
+Double-click karne par ye file khud sab kar legi:
+1. 🐍 **Python check** — agar nahi hai to **auto-download + silent install** (python.org se)
+2. 📄 `clicker.py` na mile to **GitHub se auto-download**
+3. 📦 Packages (pyautogui, pillow, pytesseract) **auto-install**
+4. 🔤 Tesseract OCR **auto-download + install** (Windows)
+5. 🖱️ Region select karo (top-left → Enter, bottom-right → Enter)
+6. ✅ "Go" aate hi sahi box par click!
+
+**Kuch bhi install/download karne ki zaroorat nahi — sirf double-click!**
+
+> Note: Pehli baar internet chahiye (Python + packages download honge). Uske baad offline bhi chalega.
+
+---
+
+## ⭐ SINGLE FILE Version (`clicker.py`)
 
 **Sirf Python install hona chahiye — baaki sab ye file khud kar leti hai:**
 - 📦 Python packages (pyautogui, pillow, pytesseract) pehli baar **auto-install**
