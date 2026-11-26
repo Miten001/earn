@@ -55,6 +55,7 @@ aur shapes **patli colored lines** (blue/green/red) se bante hain.
 - 🎨 **Grid lines ignore** — sirf colored strokes pakadta hai (grid grayscale hota hai)
 - 🧹 **Dots/dashes noise ignore** — morphology se sirf bold shape bachta hai
 - 🔄 **Rotation tolerant** — target shape box me ghumaya hua ho to bhi match ho jata hai
+- 🌗 **Adaptive borders** — Otsu + 6 thresholds (light/antialiased borders, chhota zoom — sab par kaam)
 - 🧭 **Layout auto-detect** — "Click" cell, boxes aur "Go" khud pehchanta hai
 - 🔢 **3, 4, 5... boxes** — dividers se count hota hai
 - 🌐 **Browser background me bhi** — poori screen scan karta hai, window focus ki zaroorat nahi
@@ -82,6 +83,7 @@ python clicker.py --region 100,200,700,130
 
 | Problem | Kya karo |
 |---|---|
+| **`no_strip` — boxes detect na hue** | Tool adaptive hai (Otsu + 6 thresholds), phir bhi na mile to `--manual` se poora strip select karo. Log me `reason:` line bhi aati hai |
 | **Window khulte hi band ho jati hai** | Naya `clicker.bat` download karo (purane me Windows line-ending bug tha). Naya version har error par rukta hai aur `pause` karta hai |
 | Error ki detail chahiye | Usi folder me **`clicker_log.txt`** kholo — poori traceback, Python version, OS sab save hota hai |
 | Bilkul kuch nahi hota | `python clicker.py --debug --once` chalao → `debug/` folder me png aayegi. Wo bhejo, usse pata chalega kahan atka |
