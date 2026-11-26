@@ -990,6 +990,49 @@ def run_auto(screen, region, dry_run=False, debug=False):
         time.sleep(CONFIG['scan_interval'])
 
 
+# ==================== SELFTEST ====================
+def selftest():
+    """Environment report — jab kuch samajh na aaye to ye chalao."""
+    import importlib
+    print("=" * 56)
+    print("  SELFTEST — environment report")
+    print("=" * 56)
+    info = [f"python      : {sys.version.split()[0]} ({platform.architecture()[0]})",
+            f"os          : {platform.platform()}",
+            f"file        : {os.path.abspath(__file__)}",
+            f"cwd         : {os.getcwd()}",
+            f"log file    : {LOG_FILE}"]
+    ok = True
+    for mod, pkg in [('numpy', 'numpy'), ('cv2', 'opencv-python'), ('PIL', 'pillow'),
+                     ('pyautogui', 'pyautogui'), ('pytesseract', 'pytesseract')]:
+        try:
+            m = importlib.import_module(mod)
+            ver = getattr(m, '__version__', '?')
+            info.append(f"{mod:12s}: OK  {ver}")
+        except Exception as e:
+            info.append(f"{mod:12s}: MISSING  ({e}) -> pip install {pkg}")
+            ok = False
+    tp = find_tesseract()
+    info.append(f"tesseract   : {tp if tp else 'NOT FOUND -> https://github.com/UB-Mannheim/tesseract/wiki'}")
+    if not tp:
+        ok = False
+    try:
+        import pyautogui as pg
+        sw, sh = pg.size()
+        shot = pg.screenshot()
+        info.append(f"screen      : logical {sw}x{sh}, screenshot {shot.size[0]}x{shot.size[1]}, "
+                    f"scale {shot.size[0] / float(sw):.2f}x")
+    except Exception as e:
+        info.append(f"screen      : FAIL ({e})")
+        ok = False
+    for line in info:
+        print(line)
+    print("-" * 56)
+    print("RESULT:", "✅ sab ready hai" if ok else "⚠️  kuch cheezein missing hain (upar dekho)")
+    _log_write("SELFTEST:\n  " + "\n  ".join(info) + f"\n  RESULT ok={ok}")
+    return ok
+
+
 # ==================== MAIN ====================
 def main():
     ap = argparse.ArgumentParser(description="Surf-Bash CAPTCHA clicker (shape matching)")
@@ -998,12 +1041,23 @@ def main():
     ap.add_argument('--once', action='store_true', help='ek baar solve karke exit')
     ap.add_argument('--dry-run', action='store_true', help='sirf batao, click mat karo')
     ap.add_argument('--debug', action='store_true', help='debug/ me image save karo')
+    ap.add_argument('--selftest', action='store_true',
+                    help='sirf environment check karo (kuch nahi chalega)')
     ap.add_argument('--interval', type=float, default=CONFIG['scan_interval'])
     ap.add_argument('--no-pause', action='store_true')
     args = ap.parse_args()
 
     CONFIG['scan_interval'] = args.interval
     CONFIG['debug'] = args.debug
+
+    if args.selftest:
+        selftest()
+        if not args.no_pause:
+            try:
+                input('\nENTER dabao...')
+            except (EOFError, KeyboardInterrupt):
+                pass
+        return
 
     try:
         ensure_deps()

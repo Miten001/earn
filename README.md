@@ -6,7 +6,7 @@
 
 | File | Kya hai |
 |---|---|
-| `clicker.bat` | **DOUBLE-CLICK KARO, BAS!** Python bhi auto-install kar deta hai ⭐⭐⭐ |
+| `clicker.bat` | **DOUBLE-CLICK KARO, BAS!** Python auto-install (winget), args passthrough, `launcher_log.txt` ⭐⭐⭐ |
 | `clicker.py` | **v2** — graph-paper cells + rotation-tolerant shape matching + DPI fix (`--debug`, `--dry-run`) ⭐⭐ |
 | `index.html` | Web GUI demo (browser me chalao — practice ke liye) |
 | `cli_solver.py` | CMD-only version (letter OCR wala purana) |
@@ -79,12 +79,40 @@ python clicker.py --manual         # region select karo (auto-detect fail ho to)
 python clicker.py --region 100,200,700,130
 ```
 
+### 🩺 Pehle `--selftest` chalao (environment check)
+
+Kuch bhi samajh na aaye to:
+```cmd
+clicker.bat --selftest
+```
+Ye batata hai: Python version, kaunse packages missing hain, Tesseract mila ya nahi,
+screen ka size + DPI scaling. Kuch install nahi karta — sirf report deta hai.
+
+### 🖱️ Bat ke saath options bhi chalte hain
+
+`clicker.bat` argument aage pass karta hai:
+```cmd
+clicker.bat --debug            :: debug/ me images
+clicker.bat --dry-run          :: click nahi karega, sirf bataayega
+clicker.bat --manual           :: region select
+clicker.bat --selftest         :: environment report
+```
+
+### 📄 Do log files (window band ho jaye to bhi)
+
+| File | Kya hota hai |
+|---|---|
+| `launcher_log.txt` | Bat ka har step: folder, Python kahan mila, download, exit code |
+| `clicker_log.txt` | Python ka poora output + crash traceback |
+
+Dono usi folder me bante hain jahan `clicker.py` hai.
+
 ### 🔧 Kuch kaam na kare to (troubleshooting)
 
 | Problem | Kya karo |
 |---|---|
 | **`no_strip` — boxes detect na hue** | Tool adaptive hai (Otsu + 6 thresholds), phir bhi na mile to `--manual` se poora strip select karo. Log me `reason:` line bhi aati hai |
-| **Window khulte hi band ho jati hai** | Naya `clicker.bat` download karo (purane me Windows line-ending bug tha). Naya version har error par rukta hai aur `pause` karta hai |
+| **Window khulte hi band ho jati hai** | Naya `clicker.bat` use karo (CRLF + har path par pause). Ya CMD me: `cmd /k python clicker.py --debug` — window kabhi band nahi hogi |
 | Error ki detail chahiye | Usi folder me **`clicker_log.txt`** kholo — poori traceback, Python version, OS sab save hota hai |
 | Bilkul kuch nahi hota | `python clicker.py --debug --once` chalao → `debug/` folder me png aayegi. Wo bhejo, usse pata chalega kahan atka |
 | "no_strip" / boxes na mile | `--manual` lagao aur poora CAPTCHA strip select karo |
