@@ -7,7 +7,8 @@
 | File | Kya hai |
 |---|---|
 | `index.html` | Web GUI demo (browser me chalao — practice ke liye) |
-| `captcha_solver.py` | **Real screen automation** — asli screen par kaam karta hai |
+| `cli_solver.py` | **CMD-only version** — sirf terminal me chalta hai, koi GUI nahi ⭐ |
+| `captcha_solver.py` | GUI version — window ke saath screen automation |
 | `requirements.txt` | Python packages |
 
 ---
@@ -25,7 +26,51 @@ python3 -m http.server 8000
 
 ---
 
-## 🖥️ Real Screen Version (`captcha_solver.py`)
+## ⌨️ CMD-Only Version (`cli_solver.py`) — sabse easy ⭐
+
+Koi GUI window nahi — sirf CMD/terminal me chalta hai. Sab output terminal me print hota hai.
+
+### Setup (ek baar)
+
+```bash
+pip install -r requirements.txt
+# + Tesseract OCR install karo (upar wala link)
+```
+
+### Use
+
+```bash
+# Pehli baar — region select karega (mouse se, terminal me hi)
+python cli_solver.py
+```
+
+1. Mouse ko CAPTCHA ke **top-left corner** par le jao → **Enter** dabao (position live dikhegi)
+2. Mouse ko **bottom-right corner** par le jao → **Enter** dabao
+3. Region `region.txt` me **save** ho jayega — agle run me dobara select nahi karna padega
+4. Auto monitor ON ho jayega — "Go" aate hi click 🖱️, sab terminal me print hoga:
+   ```
+   [10:30:01] 🔤 Target letter: 'q'
+   [10:30:05] 🟢 'Go' dikha! Letter find karke click karta hoon...
+   [10:30:05] 🖱️  CLICK! Box 2 par (350, 280)
+   [10:30:05] ✅ Done — 'q' Box 2 par click ho gaya!
+   ```
+
+### Commands
+
+| Command | Kya karega |
+|---|---|
+| `python cli_solver.py` | Saved region use karke auto monitor start |
+| `python cli_solver.py --pick` | Naya region select karo (saved ignore karke) |
+| `python cli_solver.py --region 100,200,460,300` | Region seedha command line se do |
+| `python cli_solver.py --once` | Ek baar find & click karke exit |
+| `python cli_solver.py --interval 0.3` | Scan interval badlo (seconds) |
+| `python cli_solver.py --help` | Saare options dikhao |
+
+**Stop:** `Ctrl+C` dabao, ya mouse ko screen corner par le jao (emergency stop).
+
+---
+
+## 🖥️ GUI Version (`captcha_solver.py`)
 
 Screen par asli CAPTCHA ke saath chalta hai — OCR se letter padhta hai aur mouse click karta hai.
 
