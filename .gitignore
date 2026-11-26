@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 debug/
 region.txt
+clicker_log.txt

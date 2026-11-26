@@ -35,9 +35,11 @@ import os
 import shutil
 import subprocess
 import sys
+import platform
 import tempfile
 import threading
 import time
+import traceback
 import urllib.request
 
 if os.name == 'nt':
@@ -53,6 +55,7 @@ CONFIG = {
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REGION_FILE = os.path.join(SCRIPT_DIR, 'region.txt')
 DEBUG_DIR = os.path.join(SCRIPT_DIR, 'debug')
+LOG_FILE = os.path.join(SCRIPT_DIR, 'clicker_log.txt')
 
 pyautogui = Image = pytesseract = cv2 = np = None
 
@@ -66,8 +69,35 @@ def ts():
     return time.strftime('%H:%M:%S')
 
 
+def _log_write(line):
+    """Har line file me bhi save karo — window band ho jaye to bhi trace mile."""
+    try:
+        with open(LOG_FILE, 'a', encoding='utf-8') as f:
+            f.write(line + '\n')
+    except Exception:
+        pass
+
+
 def log(msg):
-    print(f"[{ts()}] {msg}", flush=True)
+    line = f"[{ts()}] {msg}"
+    print(line, flush=True)
+    _log_write(line)
+
+
+def crash_report(exc_type=Exception, exc=None, tb=None):
+    """Crash ko log karo aur window turant band na ho."""
+    if tb is None:
+        tb = sys.exc_info()[2]
+    if exc is None:
+        exc = sys.exc_info()[1]
+    text = ''.join(traceback.format_exception(exc_type, exc, tb))
+    print(text, flush=True)
+    _log_write('\n===== CRASH ' + ts() + ' =====\n' + text)
+    try:
+        print(f"\n{C.RED}Kuch galti hui — poori detail {os.path.basename(LOG_FILE)} me save ho gayi.{C.RESET}")
+        input('ENTER dabao band karne ke liye...')
+    except Exception:
+        pass
 
 
 # ==================== AUTO SETUP ====================
@@ -873,5 +903,27 @@ def main():
                 pass
 
 
+def _banner():
+    """Startup info — debug ke liye zaroori."""
+    _log_write('\n' + '=' * 60)
+    _log_write(f'START {time.strftime("%Y-%m-%d %H:%M:%S")}')
+    _log_write(f'python  : {sys.version.split()[0]} ({platform.architecture()[0]})')
+    _log_write(f'os      : {platform.system()} {platform.release()}')
+    _log_write(f'file    : {os.path.abspath(__file__)}')
+    _log_write(f'cwd     : {os.getcwd()}')
+
+
 if __name__ == '__main__':
-    main()
+    _banner()
+    try:
+        main()
+    except SystemExit:
+        pass
+    except KeyboardInterrupt:
+        print(f"\n{C.YELLOW}⏹ Stop.{C.RESET}")
+    except BaseException:
+        crash_report(*sys.exc_info())
+        try:
+            input('ENTER dabao...')
+        except Exception:
+            pass
