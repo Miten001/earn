@@ -1,8 +1,14 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 title Surf Bash CAPTCHA Clicker
 color 0A
 cd /d "%~dp0"
+
+set "LOG=%~dp0launcher_log.txt"
+>> "%LOG%" echo.
+>> "%LOG%" echo ===== %DATE% %TIME% =====
+>> "%LOG%" echo [1] folder: %CD%
+>> "%LOG%" echo [1] args: %*
 
 echo ==================================================
 echo    Surf Bash CAPTCHA Clicker
@@ -10,40 +16,72 @@ echo ==================================================
 echo.
 
 set "PYCMD="
-where python >nul 2>nul && set "PYCMD=python"
-if not defined PYCMD where py >nul 2>nul && set "PYCMD=py"
+where python >nul 2>nul
+if not errorlevel 1 set "PYCMD=python"
+if not defined PYCMD (
+    where py >nul 2>nul
+    if not errorlevel 1 set "PYCMD=py"
+)
+if not defined PYCMD (
+    where python3 >nul 2>nul
+    if not errorlevel 1 set "PYCMD=python3"
+)
+
+if defined PYCMD (
+    %PYCMD% --version >nul 2>nul
+    if errorlevel 1 set "PYCMD="
+)
+>> "%LOG%" echo [2] python: %PYCMD%
 
 if not defined PYCMD (
-    echo [ERROR] Python nahi mila!
-    echo.
-    echo   1^) Browser khulega - Python download page se install karo
-    echo   2^) Install karte waqt "Add Python to PATH" tick ZAROOR karo
-    echo   3^) Phir ye file dobara double-click karo
-    echo.
-    start "" https://www.python.org/downloads/
-) else (
-    echo [OK] Python mil gaya: %PYCMD%
+    echo [SETUP] Python nahi mila - winget se install kar raha hoon...
+    echo         (internet chahiye, 1-2 minute lag sakte hain)
+    >> "%LOG%" echo [3] winget install Python.Python.3.12
+    winget install --id Python.Python.3.12 -e --silent --accept-package-agreements --accept-source-agreements
+    where python >nul 2>nul
+    if not errorlevel 1 set "PYCMD=python"
+    if not defined PYCMD (
+        if exist "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" set PYCMD="%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
+    )
+)
+
+if defined PYCMD (
+    >> "%LOG%" echo [3] python ready: %PYCMD%
+    echo [OK] Python: %PYCMD%
     echo.
     if not exist "clicker.py" (
         echo [SETUP] clicker.py download kar raha hoon...
+        >> "%LOG%" echo [4] download clicker.py
         powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/Miten001/earn/main/clicker.py' -OutFile 'clicker.py' -UseBasicParsing } catch { exit 1 }"
     )
     if exist "clicker.py" (
         echo [RUN] Clicker start ho raha hai...
         echo.
-        %PYCMD% -u "clicker.py"
+        >> "%LOG%" echo [5] run: %PYCMD% -u clicker.py %*
+        %PYCMD% -u "clicker.py" %*
+        >> "%LOG%" echo [6] exit code: !ERRORLEVEL!
         if errorlevel 1 (
             echo.
-            echo [NOTE] Clicker error ke saath band hua - clicker_log.txt check karo
+            echo [NOTE] Kuch error aaya tha - clicker_log.txt aur launcher_log.txt dekho
         )
     ) else (
         echo [ERROR] clicker.py download nahi hua!
         echo         Internet check karo, ya file manually isi folder me rakho.
+        >> "%LOG%" echo [4] DOWNLOAD FAILED
     )
+) else (
+    echo [ERROR] Python install nahi ho paya.
+    echo         Manual install: https://www.python.org/downloads/
+    echo         Install karte waqt "Add Python to PATH" tick karo.
+    >> "%LOG%" echo [3] PYTHON NOT FOUND
+    start "" https://www.python.org/downloads/
 )
 
 echo.
-echo ==================================================
+echo --------------------------------------------------
+echo   Logs : launcher_log.txt  ^|  clicker_log.txt
+echo   Check: clicker.bat --selftest
+echo   Debug: clicker.bat --debug --dry-run
 echo   Window band karne ke liye koi bhi key dabao...
-echo ==================================================
+echo --------------------------------------------------
 pause >nul
