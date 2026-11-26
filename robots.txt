@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://miten001.github.io/earn/sitemap.xml
