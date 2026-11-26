@@ -77,6 +77,10 @@ python clicker.py --dry-run        # sirf batao kaunsa box, click NA karo
 python clicker.py --debug          # debug/ folder me image save karo
 python clicker.py --manual         # region select karo (auto-detect fail ho to)
 python clicker.py --region 100,200,700,130
+python clicker.py --click-test     # clicks kaam karte hain? (safe test)
+python clicker.py --no-wait-go     # 'Go' ka intezaar nahi, seedha click
+python clicker.py --go-timeout 3   # 3s me Go na mile to phir bhi click
+python clicker.py --clicks 2       # double-click kare
 ```
 
 ### 🩺 Pehle `--selftest` chalao (environment check)
@@ -111,6 +115,7 @@ Dono usi folder me bante hain jahan `clicker.py` hai.
 
 | Problem | Kya karo |
 |---|---|
+| **Click nahi ho raha** | `--click-test` chalao (Notepad khol ke) — clicks kaam kar rahe hain ya nahi pata chalega. Phir `--no-wait-go` ya `--go-timeout 3` try karo |
 | **`no_strip` — boxes detect na hue** | Tool adaptive hai (Otsu + 6 thresholds), phir bhi na mile to `--manual` se poora strip select karo. Log me `reason:` line bhi aati hai |
 | **Window khulte hi band ho jati hai** | Naya `clicker.bat` use karo (CRLF + har path par pause). Ya CMD me: `cmd /k python clicker.py --debug` — window kabhi band nahi hogi |
 | Error ki detail chahiye | Usi folder me **`clicker_log.txt`** kholo — poori traceback, Python version, OS sab save hota hai |

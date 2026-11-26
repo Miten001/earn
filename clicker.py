@@ -49,6 +49,8 @@ CONFIG = {
     "scan_interval": 0.45,
     "click_delay": 0.25,
     "min_confidence": 0.22,     # isse kam = "pata nahi" (log me warning)
+    "clicks": 1,                # ek cell par kitne clicks
+    "go_timeout": 8.0,          # itne second 'Go' na mile to phir bhi click
     "debug": False,
 }
 
@@ -643,8 +645,10 @@ def analyse(frame_rgb, region=None, words=None, go_required=True,
         # cached layout: kaun se cells answer-boxes hain (Go cell exclude rahega)
         box_idx = [target_idx + r for r in box_rel if 0 <= target_idx + r < len(cells)]
     else:
-        box_idx = [i for i in range(len(cells))
-                   if i != target_idx and not cell_has_word(cells[i], go_w)]
+        go_idx = next((i for i, c in enumerate(cells) if cell_has_word(c, go_w)), None)
+        if go_idx is None:
+            go_idx = _go_blob_cell(arr, cells, target_idx)   # OCR fail -> blob se
+        box_idx = [i for i in range(len(cells)) if i != target_idx and i != go_idx]
     if not box_idx:
         return {'status': 'no_boxes', 'cells': cells, 'click': click_w, 'go': go_w,
                 'words': words}
@@ -768,41 +772,131 @@ def print_scores(res):
 
 
 def go_visible(frame_rgb, strip, detect_fn=None):
-    """Strip ke right me 'Go' dikh raha hai? (chhota crop OCR + blue-blob fallback)"""
+    """
+    'Go' dikh raha hai? 3 tareeke:
+      1) chhota-crop OCR (3 settings)
+      2) blue letters ko jodke (dilate) size check  <-- 'G'+'o' alag hote hain!
+      3) bada blue button blob
+    """
     arr = np.array(frame_rgb)
     H, W = arr.shape[:2]
     h = max(20, strip[3] - strip[1])
-    x0 = max(0, strip[2]); x1 = min(W, strip[2] + int(2.6 * h))
-    y0 = max(0, strip[1] - int(0.6 * h)); y1 = min(H, strip[3] + int(0.8 * h))
+    x0 = max(0, strip[2]); x1 = min(W, strip[2] + int(3.0 * h))
+    y0 = max(0, strip[1] - int(0.8 * h)); y1 = min(H, strip[3] + int(1.0 * h))
     if x1 - x0 < 10 or y1 - y0 < 10:
         return False
+
     crop = Image.fromarray(arr[y0:y1, x0:x1])
     fn = detect_fn or ocr_words
-    for w in fn(crop, upscale=2, psm=11):
-        t = _clean(w['text'])
-        if t == 'go' or t == 'g0' or (t.startswith('go') and len(t) <= 3):
-            return True
-    # fallback: bada blue blob (Go button/text)
-    sub = arr[y0:y1, x0:x1].astype(np.int16)
-    blue = ((sub[:, :, 2] - sub[:, :, 0] > 60) & (sub[:, :, 2] - sub[:, :, 1] > 40))
-    n, lab, st, _ = cv2.connectedComponentsWithStats(blue.astype(np.uint8))
+    for kw in ({'upscale': 2, 'psm': 11}, {'upscale': 3, 'psm': 6}, {'upscale': 3, 'psm': 11}):
+        try:
+            words = fn(crop, **kw)
+        except TypeError:
+            words = fn(crop)
+        except Exception:
+            words = []
+        for w in words:
+            t = _clean(w['text'])
+            if t in ('go', 'g0') or (t.startswith('go') and len(t) <= 3):
+                return True
+
+    return _blue_go_like(arr[y0:y1, x0:x1], h)
+
+
+def _blue_go_like(sub, h):
+    """Blue 'Go'-jaisa text/button hai? 'G' aur 'o' alag hote hain -> pehle jodo."""
+    if sub is None or sub.size == 0:
+        return False
+    a = sub.astype(np.int16)
+    blue = ((a[:, :, 2] - a[:, :, 0] > 60) & (a[:, :, 2] - a[:, :, 1] > 40))
+    if not blue.any():
+        return False
+    mask = blue.astype(np.uint8) * 255
+    kx = max(3, int(0.35 * h))          # letters ke beech ka gap bhar do
+    merged = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (kx, 3)))
+    n, lab, st, _ = cv2.connectedComponentsWithStats(merged)
     for i in range(1, n):
-        if st[i, cv2.CC_STAT_AREA] > 0.12 * h * h and st[i, cv2.CC_STAT_HEIGHT] > 0.35 * h:
+        if (st[i, cv2.CC_STAT_HEIGHT] >= 0.25 * h
+                and st[i, cv2.CC_STAT_AREA] >= 0.015 * h * h
+                and st[i, cv2.CC_STAT_WIDTH] >= 0.15 * h):
             return True
     return False
 
 
+def _go_blob_cell(arr, cells, target_idx):
+    """OCR 'Go' na mile to: right side ka kaun sa cell blue 'Go' jaisa hai."""
+    if not cells:
+        return None
+    h = max(20, cells[0][3] - cells[0][1])
+    for i in range(target_idx + 1, len(cells)):
+        c = cells[i]
+        if _blue_go_like(arr[c[1]:c[3], c[0]:c[2]], h):
+            return i
+    return None
+
+
 # ==================== CLICK ====================
-def click_cell(screen, cell, region=None):
+def click_cell(screen, cell, region=None, clicks=None):
     x1, y1, x2, y2 = cell
     if region:
         x1 += region[0]; x2 += region[0]; y1 += region[1]; y2 += region[1]
     px, py = (x1 + x2) / 2.0, (y1 + y2) / 2.0
     lx, ly = screen.to_logical(px, py)
+    log(f"   🎯 target: screen ({px:.0f},{py:.0f}) -> click ({lx:.0f},{ly:.0f}) "
+        f"[scale {screen.scale:.2f}x]")
+
     pyautogui.moveTo(lx, ly, duration=0.2)
     time.sleep(CONFIG['click_delay'])
+
+    # moveTo ne kaam kiya? (DPI galat ho to yahan pakda jayega)
+    try:
+        got = pyautogui.position()
+        if abs(got[0] - lx) > 8 or abs(got[1] - ly) > 8:
+            log(f"{C.YELLOW}⚠️  mouse ({got[0]},{got[1]}) par pahuncha, "
+                f"expected ({int(lx)},{int(ly)}) — display scaling issue{C.RESET}")
+    except Exception:
+        pass
+
+    n = CONFIG.get('clicks', 1) if clicks is None else clicks
+    n = max(1, min(3, int(n)))
+    for i in range(n):
+        pyautogui.mouseDown()
+        time.sleep(0.05)
+        pyautogui.mouseUp()
+        if i + 1 < n:
+            time.sleep(0.08)
+    log(f"{C.GREEN}🖱️  CLICK{(' x' + str(n)) if n > 1 else ''} "
+        f"({int(lx)}, {int(ly)}){C.RESET}")
+
+
+def click_test(screen):
+    """Clicks kaam kar rahe hain ya nahi — safe test (kahin random click nahi)."""
+    print("\n🖱️  CLICK TEST")
+    print("   Cursor abhi jahan hai wahin click hoga (3 second me).")
+    print("   Pehle Notepad khol lo to best rahega.\n")
+    for i in (3, 2, 1):
+        print(f"   {i}...", flush=True)
+        time.sleep(1.0)
+
+    start = pyautogui.position()
+    sw, sh = pyautogui.size()
+    pyautogui.moveTo(sw // 2, sh // 2, duration=0.3)
+    time.sleep(0.15)
+    mid = pyautogui.position()
+    pyautogui.moveTo(start[0], start[1], duration=0.3)
+    time.sleep(0.15)
+    back = pyautogui.position()
+
+    log(f"screen  : logical {sw}x{sh}")
+    log(f"start   : {start}")
+    log(f"center  : moved to ({sw // 2}, {sh // 2}) -> actual {mid}")
+    log(f"back    : returned -> actual {back}")
+    ok_move = abs(mid[0] - sw // 2) <= 8 and abs(mid[1] - sh // 2) <= 8
+    log(f"moveTo  : {'✅ sahi' if ok_move else '❌ galat (display scaling issue)'}")
+
     pyautogui.click()
-    log(f"{C.GREEN}🖱️  CLICK ({int(lx)}, {int(ly)}){C.RESET}")
+    log(f"{C.GREEN}🖱️  click bheja {back} par{C.RESET}")
+    log("Agar Notepad me cursor/text hila to clicks kaam kar rahe hain ✅")
 
 
 # ==================== REGION PICKER ====================
@@ -908,7 +1002,7 @@ STATE_HINT = {
 }
 
 
-def run_auto(screen, region, dry_run=False, debug=False):
+def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
     mode = 'region' if region else 'full-screen auto-detect'
     print(f"\n{C.BLUE}{C.BOLD}👀 Monitor ON ({mode}) — 'Go' dikhte hi click{C.RESET}")
     print("   Stop: Ctrl+C  ya  mouse corner par\n")
@@ -916,7 +1010,9 @@ def run_auto(screen, region, dry_run=False, debug=False):
     layout = None          # cached 'Click' word (fast tracking ke liye)
     last_state = ''
     last_click = 0.0
+    wait_since = time.time()
     stable_cell, stable_count = None, 0
+    last_nogo_log = 0.0
 
     while True:
         try:
@@ -924,7 +1020,8 @@ def run_auto(screen, region, dry_run=False, debug=False):
 
             if layout is None:
                 # --- LOCATE: poori screen OCR (slow, sirf ek baar) ---
-                res = analyse(frame, region=region)
+                res = analyse(frame, region=region, go_required=go_required,
+                              check_go=True)
                 if res['status'] in BAD_STATES:
                     if last_state != res['status']:
                         reason = f" [{STRIP_FAIL}]" if res['status'] == 'no_strip' and STRIP_FAIL else ''
@@ -942,7 +1039,8 @@ def run_auto(screen, region, dry_run=False, debug=False):
             else:
                 # --- TRACK: cached layout se fast (OCR full-screen nahi) ---
                 res = analyse(frame, region=region, click_word=layout['click'],
-                              box_rel=layout.get('box_rel'), check_go=True)
+                              box_rel=layout.get('box_rel'), check_go=True,
+                              go_required=go_required)
                 if res['status'] in BAD_STATES:
                     if last_state != res['status']:
                         log(f"{C.YELLOW}👀 layout kho gaya — dobara dhoondh raha hoon{C.RESET}")
@@ -953,9 +1051,30 @@ def run_auto(screen, region, dry_run=False, debug=False):
 
             if res['status'] == 'wait_go':
                 if last_state != 'wait_go':
-                    log(f"{C.YELLOW}⏳ 'Go' ka intezaar...{C.RESET}")
+                    log(f"{C.YELLOW}⏳ 'Go' ka intezaar... "
+                        f"({CONFIG['go_timeout']:.0f}s baad phir bhi click karunga){C.RESET}")
                     last_state = 'wait_go'
-                stable_cell, stable_count = None, 0
+                    wait_since = time.time()
+
+                # 'Go' kabhi na mile to bhi click karo (warna kuch nahi hota)
+                waited = time.time() - wait_since
+                if waited > CONFIG['go_timeout'] and (time.time() - last_click) > 2.5:
+                    if (time.time() - last_nogo_log) > 5.0:
+                        log(f"{C.YELLOW}⚠️  'Go' nahi mila ({waited:.0f}s) — "
+                            f"phir bhi Box{res['best_local']+1} par click kar raha hoon{C.RESET}")
+                        last_nogo_log = time.time()
+                    if debug:
+                        log('   debug: ' + str(save_debug(frame, res, 'nogo')))
+                    if not dry_run:
+                        click_cell(screen, res['best_cell'], region)
+                        last_click = time.time()
+                        time.sleep(1.2)
+                        layout = None
+                    else:
+                        log(f"{C.CYAN}🧪 dry-run: click roka gaya{C.RESET}")
+                        last_click = time.time()
+                    wait_since = time.time()
+                    last_state = ''
                 time.sleep(CONFIG['scan_interval'])
                 continue
 
@@ -973,7 +1092,7 @@ def run_auto(screen, region, dry_run=False, debug=False):
                 if dry_run:
                     log(f"{C.CYAN}🧪 dry-run: click roka gaya{C.RESET}")
                 else:
-                    click_cell(screen, res['best_cell'], region)
+                    click_cell(screen, res['best_cell'], region, CONFIG['clicks'])
                 last_click = time.time()
                 time.sleep(1.2)        # page settle hone do
                 layout = None          # next captcha ke liye dobara locate
@@ -1043,12 +1162,22 @@ def main():
     ap.add_argument('--debug', action='store_true', help='debug/ me image save karo')
     ap.add_argument('--selftest', action='store_true',
                     help='sirf environment check karo (kuch nahi chalega)')
+    ap.add_argument('--no-wait-go', action='store_true',
+                    help="'Go' ka intezaar mat karo — boxes milte hi click")
+    ap.add_argument('--go-timeout', type=float, default=CONFIG['go_timeout'],
+                    help="itne second 'Go' na mile to phir bhi click (default 8)")
+    ap.add_argument('--clicks', type=int, default=1,
+                    help='ek box par kitne clicks (1-3, default 1)')
+    ap.add_argument('--click-test', action='store_true',
+                    help='clicks kaam kar rahe hain ya nahi — safe test')
     ap.add_argument('--interval', type=float, default=CONFIG['scan_interval'])
     ap.add_argument('--no-pause', action='store_true')
     args = ap.parse_args()
 
     CONFIG['scan_interval'] = args.interval
     CONFIG['debug'] = args.debug
+    CONFIG['clicks'] = max(1, min(3, args.clicks))
+    CONFIG['go_timeout'] = max(0.0, args.go_timeout)
 
     if args.selftest:
         selftest()
@@ -1067,6 +1196,10 @@ def main():
 
         screen = Screen()
 
+        if args.click_test:
+            click_test(screen)
+            return
+
         region = None
         if args.region:
             region = parse_region(args.region)
@@ -1084,7 +1217,8 @@ def main():
         if args.once:
             solve_now(screen, region, dry_run=args.dry_run, debug=args.debug)
         else:
-            run_auto(screen, region, dry_run=args.dry_run, debug=args.debug)
+            run_auto(screen, region, dry_run=args.dry_run, debug=args.debug,
+                     go_required=not args.no_wait_go)
 
     except KeyboardInterrupt:
         print(f"\n{C.YELLOW}⏹ Stop ho gaya.{C.RESET}")
