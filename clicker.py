@@ -197,36 +197,76 @@ def ensure_tesseract():
 
 
 # ==================== SCREEN + DPI ====================
+def set_dpi_aware():
+    """
+    Windows par process ko DPI-aware banao.
+
+    KYUN: 125%/150% display scaling par DPI-unaware process ka screenshot
+    (physical px) aur click (logical px) alag hota hai — click GALAT jagah
+    lagta hai. DPI-aware hone ke baad teeno (screenshot, size, click)
+    physical px me hote hain -> koi conversion nahi -> click sahi jagah.
+    """
+    if os.name != 'nt':
+        return 'n/a'
+    try:
+        import ctypes
+    except Exception:
+        return 'no-ctypes'
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)      # per-monitor v2
+        return 'per-monitor'
+    except Exception:
+        pass
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()           # system aware
+        return 'system'
+    except Exception:
+        return 'failed'
+
+
 class Screen:
-    """Screenshot physical px me leta hai; click logical coords me jata hai.
-    High-DPI (125%/150%) par ye scale zaroori hai — warna click galat jagah!"""
+    """
+    Screenshot aur click — dono ka mapping ek jagah.
+    DPI-aware hone ke baad scale 1.0 hona chahiye (physical px).
+    Agar OS phir bhi scale de, to usi hisaab se convert karte hain.
+    """
 
     def __init__(self):
         self.scale = 1.0
+        self.dpi_mode = set_dpi_aware()
         try:
-            sw, _sh = pyautogui.size()
+            sw, sh = pyautogui.size()
             shot = pyautogui.screenshot()
+            self.phys_w, self.phys_h = shot.size
+            self.logi_w, self.logi_h = sw, sh
             if sw:
                 self.scale = shot.size[0] / float(sw)
         except Exception:
+            self.phys_w = self.phys_h = self.logi_w = self.logi_h = 0
+        self.shot_w, self.shot_h = self.phys_w, self.phys_h
+
+        # shakki scale ko 1.0 maan lo (1.0/1.25/1.5/1.75/2.0 hi asli hote hain)
+        if abs(self.scale - 1.0) <= 0.04:
             self.scale = 1.0
-        try:
-            shot2 = pyautogui.screenshot()
-            w, h = shot2.size
-        except Exception:
-            w = h = 0
-        self.shot_w, self.shot_h = w, h
-        if abs(self.scale - 1.0) > 0.05:
-            log(f"{C.YELLOW}🖥️  Screen {w}x{h} px, display scaling {self.scale:.2f}x "
-                f"(clicks adjust ho jayenge){C.RESET}")
         else:
-            log(f"🖥️  Screen {w}x{h} px, scaling 1.0x")
+            for real in (1.25, 1.5, 1.75, 2.0, 1.1, 1.33):
+                if abs(self.scale - real) < 0.06:
+                    self.scale = real
+                    break
+
+        if self.scale != 1.0:
+            log(f"{C.YELLOW}🖥️  Screen {self.phys_w}x{self.phys_h} px, DPI mode={self.dpi_mode}, "
+                f"scaling {self.scale:.2f}x — clicks convert honge{C.RESET}")
+        else:
+            log(f"🖥️  Screen {self.phys_w}x{self.phys_h} px, DPI mode={self.dpi_mode}, scaling 1.0x")
 
     def grab(self):
-        img = pyautogui.screenshot().convert('RGB')
-        return img
+        return pyautogui.screenshot().convert('RGB')
 
     def to_logical(self, px, py):
+        """Screenshot px -> click coords."""
+        if self.scale == 1.0:
+            return float(px), float(py)
         return px / self.scale, py / self.scale
 
 
@@ -902,14 +942,25 @@ def _go_blob_cell(arr, cells, target_idx):
 
 
 # ==================== CLICK ====================
-def click_cell(screen, cell, region=None, clicks=None):
+def click_cell(screen, cell, region=None, clicks=None, jitter=0):
     x1, y1, x2, y2 = cell
     if region:
         x1 += region[0]; x2 += region[0]; y1 += region[1]; y2 += region[1]
     px, py = (x1 + x2) / 2.0, (y1 + y2) / 2.0
+    if jitter:
+        px += jitter
+        py += jitter
     lx, ly = screen.to_logical(px, py)
     log(f"   🎯 target: screen ({px:.0f},{py:.0f}) -> click ({lx:.0f},{ly:.0f}) "
         f"[scale {screen.scale:.2f}x]")
+
+    # screen ke bahar? (galat mapping pakadne ke liye)
+    lim_w = getattr(screen, 'logi_w', 0) or getattr(screen, 'shot_w', 0)
+    lim_h = getattr(screen, 'logi_h', 0) or getattr(screen, 'shot_h', 0)
+    if lx < 0 or ly < 0 or (lim_w and lx >= lim_w) or (lim_h and ly >= lim_h):
+        log(f"{C.RED}❌ click point screen ke bahar hai ({lx:.0f},{ly:.0f}) "
+            f"— screen {lim_w}x{lim_h}. Click skip.{C.RESET}")
+        return False
 
     pyautogui.moveTo(lx, ly, duration=0.2)
     time.sleep(CONFIG['click_delay'])
@@ -933,6 +984,40 @@ def click_cell(screen, cell, region=None, clicks=None):
             time.sleep(0.08)
     log(f"{C.GREEN}🖱️  CLICK{(' x' + str(n)) if n > 1 else ''} "
         f"({int(lx)}, {int(ly)}){C.RESET}")
+    return True
+
+
+def calibrate(screen):
+    """Screenshot <-> click mapping verify karo (kuch click nahi hota)."""
+    print("\n🔧 CALIBRATION — mapping check (koi click nahi hoga)\n")
+    try:
+        sw, sh = pyautogui.size()
+        shot = pyautogui.screenshot()
+        print(f"  DPI mode          : {screen.dpi_mode}")
+        print(f"  pyautogui.size()  : {sw} x {sh}")
+        print(f"  screenshot        : {shot.size[0]} x {shot.size[1]}")
+        print(f"  scale (shot/size) : {shot.size[0] / float(sw):.3f}")
+        print(f"  active scale      : {screen.scale:.2f}x")
+        start = pyautogui.position()
+        print(f"  mouse start       : {start}")
+        bad = 0
+        for tx, ty in [(sw // 4, sh // 4), (sw // 2, sh // 2), (3 * sw // 4, 3 * sh // 4)]:
+            pyautogui.moveTo(tx, ty)
+            time.sleep(0.15)
+            gx, gy = pyautogui.position()
+            ok = abs(gx - tx) <= 3 and abs(gy - ty) <= 3
+            bad += 0 if ok else 1
+            print(f"  moveTo({tx},{ty}) -> ({gx},{gy})  {'OK' if ok else 'MISMATCH'}")
+        pyautogui.moveTo(start[0], start[1])
+        print("-" * 52)
+        if bad == 0 and screen.scale == 1.0:
+            print("  ✅ Mapping sahi lagti hai (scale 1.0, moves exact)")
+        else:
+            print(f"  ⚠️  {bad} move mismatch / scale {screen.scale:.2f} — yehi wajah ho sakti hai")
+        _log_write(f"CALIBRATE: dpi={screen.dpi_mode} size={sw}x{sh} shot={shot.size} "
+                   f"scale={screen.scale} mismatches={bad}")
+    except Exception as e:
+        print(f"  ❌ calibration fail: {e}")
 
 
 def click_test(screen):
@@ -998,7 +1083,7 @@ def pick_region():
         print(f"{C.RED}❌ Region bahut chhota{W}{C.RESET}")
         sys.exit(1)
     with open(REGION_FILE, 'w') as f:
-        f.write(f"{x},{y},{w},{h}")
+        f.write(f"{x},{y},{w},{h},#dpi")     # marker: coords DPI-aware hain
     return (x, y, w, h)
 
 
@@ -1006,9 +1091,15 @@ def load_region():
     if os.path.exists(REGION_FILE):
         try:
             with open(REGION_FILE) as f:
-                p = [int(v) for v in f.read().strip().split(',')]
-            if len(p) == 4:
-                return tuple(p)
+                toks = [t.strip() for t in f.read().strip().split(',')]
+            nums = [int(t) for t in toks[:4]]
+            marked = len(toks) > 4 and toks[4].startswith('#dpi')
+            if not marked:
+                # purana region (DPI-aware hone se pehle ka) -> bharosa nahi
+                log(f"{C.YELLOW}⚠️  Purana region.txt mila — DPI mode badal gaya hai, "
+                    f"ignore kar raha hoon. '--manual' se dobara select karo.{C.RESET}")
+                return None
+            return tuple(nums)
         except Exception:
             pass
     return None
@@ -1076,6 +1167,9 @@ def load_layout_cache(screen=None):
         click = d.get('click')
         if not isinstance(click, dict):
             return None
+        ts = d.get('ts', 0)
+        if time.time() - ts > 900:      # 15 min purana -> bharosa nahi
+            return None
         if screen is not None and d.get('size'):
             sw, sh = d['size']
             if abs(sw - screen.shot_w) > 4 or abs(sh - screen.shot_h) > 4:
@@ -1088,7 +1182,7 @@ def load_layout_cache(screen=None):
 def save_layout_cache(layout, screen=None):
     try:
         d = {'click': layout['click'], 'box_rel': layout.get('box_rel'),
-             'saved': time.strftime('%Y-%m-%d %H:%M:%S')}
+             'ts': time.time(), 'saved': time.strftime('%Y-%m-%d %H:%M:%S')}
         if screen is not None:
             d['size'] = [screen.shot_w, screen.shot_h]
         with open(LAYOUT_CACHE, 'w') as f:
@@ -1115,6 +1209,9 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
     stable_cell, stable_count = None, 0
     last_nogo_log = 0.0
     bad_streak = 0
+    pending_sig = None      # click ke baad target shape (verify ke liye)
+    pending_local = -1
+    click_attempts = 0
 
     while True:
         try:
@@ -1148,9 +1245,10 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
                     log('   debug: ' + str(save_debug(frame, res, 'locate')))
             else:
                 # ---- FAST TRACK: cached layout, ~10ms/frame ----
+                # box_rel cache me nahi bhejte — har frame par cells se recompute
+                # hota hai, taaki layout badalne par galat cell na chune
                 res = analyse(frame, region=region, click_word=layout['click'],
-                              box_rel=layout.get('box_rel'), check_go=True,
-                              go_required=go_required)
+                              check_go=True, go_required=go_required)
                 if res['status'] in BAD_STATES:
                     bad_streak += 1
                     if bad_streak >= 3:
@@ -1180,12 +1278,37 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
                         log(f"{C.CYAN}🧪 dry-run: click roka gaya{C.RESET}")
                     else:
                         click_cell(screen, res['best_cell'], region, CONFIG['clicks'])
+                        pending_sig = res.get('target_sig')
+                        pending_local = res['best_local']
+                        click_attempts = 1
                         time.sleep(1.2)
                     last_click = time.time()
                     wait_since = time.time()
                     last_state = ''
                 time.sleep(CONFIG['scan_interval'])
                 continue
+
+            # ---- click register hua? (wahi CAPTCHA dikh raha hai to retry) ----
+            if pending_sig is not None and res.get('target_sig') is not None:
+                same = (iou(pending_sig, res['target_sig']) > 0.85
+                        and res['best_local'] == pending_local)
+                if same:
+                    if click_attempts < 3 and (time.time() - last_click) > 2.0:
+                        log(f"{C.YELLOW}⚠️  Click register nahi hua — dobara try "
+                            f"({click_attempts}/3){C.RESET}")
+                        if not dry_run:
+                            click_cell(screen, res['best_cell'], region,
+                                       CONFIG['clicks'], jitter=click_attempts * 7)
+                        click_attempts += 1
+                        last_click = time.time()
+                        time.sleep(1.0)
+                        continue
+                    if click_attempts >= 3:
+                        log(f"{C.RED}❌ 3 baar click kiya par CAPTCHA wahi hai — "
+                            f"site/coordinates issue. --calibrate chalao.{C.RESET}")
+                        pending_sig, click_attempts = None, 0
+                else:
+                    pending_sig, click_attempts = None, 0
 
             # ---- 'Go' mila: 2 frame stable par click ----
             if res['best_local'] == stable_cell:
@@ -1203,6 +1326,9 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
                 else:
                     click_cell(screen, res['best_cell'], region, CONFIG['clicks'])
                 last_click = time.time()
+                pending_sig = res.get('target_sig')
+                pending_local = res['best_local']
+                click_attempts = 1
                 # layout rakho: agla CAPTCHA wahi jagah hota hai -> fast
                 time.sleep(1.5)
                 stable_cell, stable_count = None, 0
@@ -1278,6 +1404,8 @@ def main():
                     help="itne second 'Go' na mile to phir bhi click (default 8)")
     ap.add_argument('--clicks', type=int, default=1,
                     help='ek box par kitne clicks (1-3, default 1)')
+    ap.add_argument('--calibrate', action='store_true',
+                    help='screenshot/click mapping check (kuch click nahi)')
     ap.add_argument('--click-test', action='store_true',
                     help='clicks kaam kar rahe hain ya nahi — safe test')
     ap.add_argument('--interval', type=float, default=CONFIG['scan_interval'])
@@ -1305,6 +1433,10 @@ def main():
         print("=" * 56)
 
         screen = Screen()
+
+        if args.calibrate:
+            calibrate(screen)
+            return
 
         if args.click_test:
             click_test(screen)

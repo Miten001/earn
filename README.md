@@ -63,7 +63,8 @@ aur shapes **patli colored lines** (blue/green/red) se bante hain.
 - 🧭 **Layout auto-detect** — "Click" cell, boxes aur "Go" khud pehchanta hai
 - 🔢 **3, 4, 5... boxes** — dividers se count hota hai
 - 🌐 **Browser background me bhi** — poori screen scan karta hai, window focus ki zaroorat nahi
-- 🖥️ **High-DPI fix** — 125%/150% display scaling par bhi click sahi jagah lagta hai
+- 🖥️ **DPI-aware mode** — process ko per-monitor DPI-aware banata hai, isliye screenshot aur
+  click dono **physical pixels** me hote hain → 125%/150% scaling par bhi click bilkul sahi jagah
 - ⚡ **Fast tracking** — CAPTCHA ek baar milne par har frame me sirf chhota hissa check hota hai (~10 ms)
 
 ### Use
@@ -82,6 +83,7 @@ python clicker.py --debug          # debug/ folder me image save karo
 python clicker.py --manual         # region select karo (auto-detect fail ho to)
 python clicker.py --region 100,200,700,130
 python clicker.py --click-test     # clicks kaam karte hain? (safe test)
+python clicker.py --calibrate      # screenshot/click mapping check (kuch click nahi)
 python clicker.py --no-wait-go     # 'Go' ka intezaar nahi, seedha click
 python clicker.py --go-timeout 3   # 3s me Go na mile to phir bhi click
 python clicker.py --clicks 2       # double-click kare
@@ -119,6 +121,8 @@ Dono usi folder me bante hain jahan `clicker.py` hai.
 
 | Problem | Kya karo |
 |---|---|
+| **Galat jagah click ho raha** | `--calibrate` chalao (kuch click nahi karega, sirf mapping report). Purana `region.txt` delete karo — DPI mode badla hai |
+| **Click ho raha par CAPTCHA nahi ja raha** | Tool khud 3 baar retry karta hai (thoda alag point par). Phir bhi na ho to `--clicks 2` |
 | **Click nahi ho raha** | `--click-test` chalao (Notepad khol ke) — clicks kaam kar rahe hain ya nahi pata chalega. Phir `--no-wait-go` ya `--go-timeout 3` try karo |
 | **`no_strip` — boxes detect na hue** | `layout_cache.json` delete karke dobara chalao (agar page layout badla ho). Phir bhi na ho to `--manual` |
 | **Window khulte hi band ho jati hai** | Naya `clicker.bat` use karo (CRLF + har path par pause). Ya CMD me: `cmd /k python clicker.py --debug` — window kabhi band nahi hogi |
