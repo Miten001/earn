@@ -83,7 +83,11 @@ aur shapes **patli colored lines** (blue/green/red) se bante hain.
 ### Use
 
 **Option A — Double-click karo:**
-1. `clicker.py` (ya `clicker.bat`) par **double-click**
+1. `clicker.bat` par **double-click**
+   - Bat har run par **khud latest `clicker.py` download karta hai** (purani file delete
+     hoke nayi aa jati hai) — folder me purana version rakhne ki zaroorat nahi
+   - Internet na ho to purani copy se hi chal jata hai (delete sirf naya aane par hota hai)
+   - Update band karna ho to usi folder me `no_update.txt` naam ki khali file bana do
 2. Tool screen scan karke CAPTCHA khud dhoondhega — kuch select nahi karna
 3. ⏳ Timer chalta hai — tool tab tak sirf shape dhoondhta hai (click nahi)
 4. 🟢 **"GO"** dikhte hi usi waqt click. Stop: `Ctrl+C` ya mouse screen corner par
@@ -131,7 +135,7 @@ clicker.bat --selftest         :: environment report
 
 | File | Kya hota hai |
 |---|---|
-| `launcher_log.txt` | Bat ka har step: folder, Python kahan mila, download, exit code |
+| `launcher_log.txt` | Bat ka har step: folder, Python kahan mila, download/update, exit code |
 | `clicker_log.txt` | Python ka poora output + crash traceback |
 
 Dono usi folder me bante hain jahan `clicker.py` hai.
@@ -148,6 +152,7 @@ Dono usi folder me bante hain jahan `clicker.py` hai.
 | **`no_strip` — boxes detect na hue** | `layout_cache.json` delete karke dobara chalao (naya version purana cache khud ignore karta hai) (agar page layout badla ho). Phir bhi na ho to `--manual` |
 | **Window khulte hi band ho jati hai** | Naya `clicker.bat` use karo (CRLF + har path par pause). Ya CMD me: `cmd /k python clicker.py --debug` — window kabhi band nahi hogi |
 | Error ki detail chahiye | Usi folder me **`clicker_log.txt`** kholo — poori traceback, Python version, OS sab save hota hai |
+| **Purana version chal raha hai** | `clicker.bat` dobara double-click karo — wo har baar latest `clicker.py` khud download karta hai (purani delete hoke). Bat bhi purana ho to naya bat download karo |
 | Bilkul kuch nahi hota | `python clicker.py --debug --once` chalao → `debug/` folder me png aayegi. Wo bhejo, usse pata chalega kahan atka |
 | "no_strip" / boxes na mile | `--manual` lagao aur poora CAPTCHA strip select karo |
 | Galat box click ho raha | `--dry-run` se check karo, phir `debug/` wali image bhejo (scores usme dikhte hain) |

@@ -35,7 +35,7 @@ if defined PYCMD (
 
 if not defined PYCMD (
     echo [SETUP] Python nahi mila - winget se install kar raha hoon...
-    echo         (internet chahiye, 1-2 minute lag sakte hain)
+    echo         ^(internet chahiye, 1-2 minute lag sakte hain^)
     >> "%LOG%" echo [3] winget install Python.Python.3.12
     winget install --id Python.Python.3.12 -e --silent --accept-package-agreements --accept-source-agreements
     where python >nul 2>nul
@@ -49,10 +49,39 @@ if defined PYCMD (
     >> "%LOG%" echo [3] python ready: %PYCMD%
     echo [OK] Python: %PYCMD%
     echo.
-    if not exist "clicker.py" (
-        echo [SETUP] clicker.py download kar raha hoon...
-        >> "%LOG%" echo [4] download clicker.py
-        powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/Miten001/earn/main/clicker.py' -OutFile 'clicker.py' -UseBasicParsing } catch { exit 1 }"
+    rem ---- SELF-UPDATE: purana clicker.py delete hoke naya download hota hai ----
+    set "NEWPY=%~dp0clicker_new.py"
+    set "URL=https://raw.githubusercontent.com/Miten001/earn/main/clicker.py"
+    if exist "%~dp0no_update.txt" (
+        echo [SKIP] no_update.txt mila - update band
+        >> "%LOG%" echo [4] update skipped (no_update.txt)
+    ) else (
+        echo [SETUP] latest clicker.py download kar raha hoon...
+        >> "%LOG%" echo [4] download clicker.py (self-update)
+        del /q "%NEWPY%" >nul 2>nul
+        curl -L -s -S -o "%NEWPY%" "%URL%"
+        set "NEWOK="
+        if exist "%NEWPY%" for %%F in ("%NEWPY%") do if %%~zF GTR 20000 set "NEWOK=1"
+        if not defined NEWOK (
+            rem curl fail (ya purana Windows) -> PowerShell se dobara
+            del /q "%NEWPY%" >nul 2>nul
+            powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Invoke-WebRequest -Uri '%URL%' -OutFile '%NEWPY%' -UseBasicParsing } catch { exit 1 }"
+            if exist "%NEWPY%" for %%F in ("%NEWPY%") do if %%~zF GTR 20000 set "NEWOK=1"
+        )
+        if defined NEWOK (
+            if exist "clicker.py" del /q "clicker.py"
+            move /y "%NEWPY%" "%~dp0clicker.py" >nul
+            echo [OK] clicker.py latest version ready
+            >> "%LOG%" echo [4] clicker.py updated
+        ) else (
+            if exist "%NEWPY%" del /q "%NEWPY%" >nul 2>nul
+            >> "%LOG%" echo [4] download FAILED - purani copy check
+            if exist "clicker.py" (
+                echo [WARN] Download fail - internet check karo. Purani clicker.py se start kar raha hoon
+            ) else (
+                echo [ERROR] clicker.py download bhi nahi hua aur purani copy bhi nahi hai!
+            )
+        )
     )
     if exist "clicker.py" (
         echo [RUN] Clicker start ho raha hai...
