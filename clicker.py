@@ -87,6 +87,7 @@ pyautogui = Image = pytesseract = cv2 = np = None
 class C:
     GREEN = "\033[92m"; RED = "\033[91m"; YELLOW = "\033[93m"
     BLUE = "\033[94m"; CYAN = "\033[96m"; BOLD = "\033[1m"; RESET = "\033[0m"
+    MAGENTA = "\033[95m"
 
 
 def ts():
@@ -1570,6 +1571,219 @@ def save_layout_cache(layout, screen=None):
         pass
 
 
+
+# ==================== MULTI CAPTCHA (5-6 browser ek saath) ====================
+def _overlap(a, b):
+    """Do boxes kitna overlap karte hain (0..1)."""
+    x1 = max(a[0], b[0]); y1 = max(a[1], b[1])
+    x2 = min(a[2], b[2]); y2 = min(a[3], b[3])
+    if x2 <= x1 or y2 <= y1:
+        return 0.0
+    inter = (x2 - x1) * (y2 - y1)
+    area_a = max(1, (a[2] - a[0]) * (a[3] - a[1]))
+    return inter / float(area_a)
+
+
+def find_captchas(gray, arr, words):
+    """
+    Screen par SAARE CAPTCHA dhoondho (5-6 browser windows ho sakti hain).
+    Har candidate ko score milta hai — "jyada sahi" wala upar.
+    Return: [{'click','cells','strip','target_idx','score'}] (score se sorted)
+    """
+    H, W = gray.shape[:2]
+    cands = [w for w in words if 'click' in _clean(w['text']) and w['h'] >= 6]
+    if not cands:
+        return []
+
+    gos = [w for w in words
+           if _clean(w['text']) in ('go', 'g0')
+           or (_clean(w['text']).startswith('go') and len(_clean(w['text'])) <= 3)]
+
+    out = []
+    for c in cands:
+        cells, strip = detect_strip(gray, c, arr=arr)
+        if not cells or not (2 <= len(cells) <= 8):
+            continue
+        ti = next((i for i, cc in enumerate(cells) if cell_has_word(cc, c)), None)
+        if ti is None:
+            continue
+        # duplicate strip (ek hi CAPTCHA ke 2 'click' words) -> skip
+        if any(_overlap(strip, o['strip']) > 0.55 for o in out):
+            continue
+
+        # ---- score: kaunsa CAPTCHA sabse "pakka" lagta hai ----
+        score = 0
+        n = len(cells)
+        if n == 4:
+            score += 3               # naya layout (3 box + clue)
+        elif 3 <= n <= 7:
+            score += 2
+        if ti == n - 1:
+            score += 1               # clue cell aakhri me
+        if any(cell_has_word(cc, g) for cc in cells for g in gos):
+            score += 3               # paas me 'Go' word
+        h = max(1, strip[3] - strip[1])
+        w = max(1, strip[2] - strip[0])
+        if 2.0 <= w / float(h) <= 8.0:
+            score += 1               # CAPTCHA jaisa aspect
+        # slot me timer/GO dikh raha hai? (sabse strong signal)
+        try:
+            st, _ = go_state(np.array(Image.fromarray(arr)), (strip[2], strip[1], strip[2], strip[3]))
+            if st in ('go', 'timer'):
+                score += 3
+        except Exception:
+            pass
+        out.append({'click': c, 'cells': cells, 'strip': strip,
+                    'target_idx': ti, 'score': score})
+    out.sort(key=lambda d: -d['score'])
+    # kamzor candidates (ad/banner jaisa) hata do — "wrong captcha" click na ho
+    strong = [d for d in out if d['score'] >= 3]
+    return (strong or out)[:8]
+
+
+def _target_region(tr, frame_size):
+    """Tracker ke liye crop region (strip + right ka slot area)."""
+    W, H = frame_size
+    x1, y1, x2, y2 = tr['strip']
+    h = max(10, y2 - y1)
+    pad = max(4, int(0.05 * h))
+    return (max(0, x1 - pad), max(0, y1 - pad),
+            min(W, x2 + int(2.6 * h)), min(H, y2 + pad))
+
+
+def run_multi(screen, region=None, dry_run=False, debug=False, go_required=True):
+    """
+    Ek saath kai CAPTCHA (5-6 browser) — har ek ka apna timer/GO.
+    Jis CAPTCHA ka 'GO' aaya, usi par turant click.
+    """
+    mode = 'region' if region else 'full-screen (multi CAPTCHA)'
+    print(f"{C.BLUE}{C.BOLD}👀 Monitor ON ({mode}) — har CAPTCHA ka apna GO{C.RESET}")
+    print("   Stop: Ctrl+C  ya  mouse corner par\n")
+
+    trackers = []          # har CAPTCHA ka state
+    words = None
+    last_detect = 0.0
+    last_click = 0.0
+    blind_count = 0
+    last_none = time.time()
+
+    def log_t(i, msg):
+        log(f"{C.MAGENTA}[#{i + 1}]{C.RESET} {msg}")
+
+    while True:
+        try:
+            frame = screen.grab()
+            arr = np.array(frame)
+            gray = cv2.cvtColor(arr, cv2.COLOR_RGB2GRAY)
+            now = time.time()
+
+            # ---- naye CAPTCHA dhoondho (OCR sirf zaroorat par) ----
+            if words is None or (now - last_detect) > 15.0 or not trackers:
+                words = locate_words(frame)
+                found = find_captchas(gray, arr, words)
+                last_detect = now
+                old_keys = {(t['strip'][0] // 24, t['strip'][1] // 24) for t in trackers}
+                for f in found:
+                    key = (f['strip'][0] // 24, f['strip'][1] // 24)
+                    if any(abs(t['strip'][0] - f['strip'][0]) < 24
+                           and abs(t['strip'][1] - f['strip'][1]) < 24 for t in trackers):
+                        continue
+                    trackers.append({'click': f['click'], 'strip': f['strip'],
+                                     'last_click': 0.0, 'attempts': 0,
+                                     'clicked_fp': None, 'fails': 0})
+                if found:
+                    log(f"{C.GREEN}✅ {len(found)} CAPTCHA mile — sabko track kar raha hoon"
+                        f"{C.RESET}")
+
+            # ---- har CAPTCHA ko check karo ----
+            alive = []
+            for i, tr in enumerate(trackers):
+                reg = _target_region(tr, (gray.shape[1], gray.shape[0]))
+                cw_local = dict(tr['click'])
+                cw_local['x'] -= reg[0]; cw_local['y'] -= reg[1]
+                res = analyse(frame, region=reg, click_word=cw_local,
+                              check_go=True, go_required=go_required)
+                if res['status'] in BAD_STATES:
+                    tr['fails'] += 1
+                    if tr['fails'] <= 3:
+                        alive.append(tr)
+                    else:
+                        log_t(i, f"{C.YELLOW}CAPTCHA gayab — list se hata diya{C.RESET}")
+                    continue
+                tr['fails'] = 0
+                tr['strip'] = (res['strip'][0] + reg[0], res['strip'][1] + reg[1],
+                               res['strip'][2] + reg[0], res['strip'][3] + reg[1])
+                tr['cells'] = res['cells']; tr['reg'] = reg
+                alive.append(tr)
+
+                # click register hua? — wahi CAPTCHA rehta hai to dobara click nahi
+                if tr['clicked_fp'] is not None:
+                    if fp_diff(tr['clicked_fp'], res.get('fp')) > 4.0:
+                        tr['clicked_fp'] = None     # naya CAPTCHA aa gaya
+                        tr['attempts'] = 0
+                    elif tr['attempts'] >= 2:
+                        continue                    # 2 try ho gaye — chup raho
+                    elif (now - tr['last_click']) < 3.0:
+                        continue                    # abhi click kiya hai
+
+                if res['status'] == 'wait_go':
+                    txt = res.get('slot_text') or ''
+                    if txt and txt != tr.get('slot_txt'):
+                        tr['slot_txt'] = txt
+                        log_t(i, f"{C.YELLOW}⏳ timer: {txt}{C.RESET}")
+                    continue
+
+                # ---- 'GO' aa gaya -> usi time click ----
+                if tr['clicked_fp'] is not None and fp_diff(tr['clicked_fp'], res.get('fp')) < 4.0:
+                    continue        # ye CAPTCHA already click ho chuka hai
+                pick, reason, sc = choose_box(res)
+                if pick is None or pick == res.get('target_idx'):
+                    continue
+                box_no = res['box_idx'].index(pick) + 1
+                tag = 'match' if reason == 'match' else 'RANDOM'
+                log_t(i, f"{C.GREEN}🟢 GO → Box{box_no} [{tag}] {sc:.2f}{C.RESET}")
+                if dry_run:
+                    log_t(i, f"{C.CYAN}🧪 dry-run: click nahi{C.RESET}")
+                else:
+                    click_cell(screen, res['cells'][pick], region=reg, clicks=CONFIG['clicks'])
+                tr['last_click'] = last_click = now
+                tr['clicked_fp'] = res.get('fp')
+                tr['attempts'] = tr.get('attempts', 0) + 1
+                blind_count = 0
+                last_none = now
+            trackers = alive
+
+            # ---- kuch bhi nahi mila -> blind click (bounded) ----
+            if not trackers:
+                if (now - last_none) > 4.0 and (now - last_click) > 4.0 and blind_count < 5:
+                    if CONFIG['blind_click'] and not dry_run:
+                        blind_count += 1
+                        pt = None
+                        if words:
+                            ws = [w for w in words if 'click' in _clean(w['text'])]
+                            if ws:
+                                pt = (ws[0]['x'] + ws[0]['w'] / 2.0,
+                                      ws[0]['y'] + ws[0]['h'] / 2.0)
+                        if pt is None:
+                            pt = (gray.shape[1] / 2.0, gray.shape[0] / 2.0)
+                        log(f"{C.YELLOW}🕳️  CAPTCHA nahi mila — seedha click "
+                            f"({blind_count}/5): ({pt[0]:.0f},{pt[1]:.0f}){C.RESET}")
+                        click_xy(screen, pt[0], pt[1])
+                        last_click = time.time()
+                elif blind_count >= 5 and (now - last_click) > 10:
+                    log(f"{C.RED}🛑 blind clicking band — `--manual` se region do{C.RESET}")
+                    blind_count = 6
+
+            time.sleep(min(CONFIG['scan_interval'], 0.12))
+        except pyautogui.FailSafeException:
+            raise
+        except KeyboardInterrupt:
+            raise
+        except Exception as e:
+            log(f"⚠️ error: {e}")
+            time.sleep(0.4)
+
+
 def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
     mode = 'region' if region else 'full-screen auto-detect'
     print(f"{C.BLUE}{C.BOLD}👀 Monitor ON ({mode}) — 'GO' dikhte hi click{C.RESET}")
@@ -1908,6 +2122,8 @@ def main():
                     help="'Go' ka intezaar mat karo — boxes milte hi click")
     ap.add_argument('--go-timeout', type=float, default=CONFIG['go_timeout'],
                     help="itne second 'Go' na mile to phir bhi click (default 0 = sirf 'Go' par click)")
+    ap.add_argument('--single', action='store_true',
+                    help='sirf ek CAPTCHA track karo (multi-window off)')
     ap.add_argument('--no-blind', action='store_true',
                     help='CAPTCHA detect na ho to seedha click mat karo')
     ap.add_argument('--blind-after', type=float, default=CONFIG['blind_after'],
@@ -1976,6 +2192,9 @@ def main():
 
         if args.once:
             solve_now(screen, region, dry_run=args.dry_run, debug=args.debug)
+        elif region is None and not args.single:
+            run_multi(screen, None, dry_run=args.dry_run, debug=args.debug,
+                      go_required=not args.no_wait_go)
         else:
             run_auto(screen, region, dry_run=args.dry_run, debug=args.debug,
                      go_required=not args.no_wait_go)
