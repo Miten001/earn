@@ -67,6 +67,11 @@ CONFIG = {
     "min_margin": 0.04,         # best - 2nd best isse kam -> ambiguous -> random
     "clicks": 1,                # ek cell par kitne clicks
     "go_timeout": 0.0,          # 0 = sirf 'Go' dikhne par click (timer ke baad)
+    "blind_click": True,        # CAPTCHA detect na ho to seedha click (GO ka intezaar nahi)
+    "blind_after": 1.2,         # itne second tak kuch detect na ho -> blind click
+    "blind_cooldown": 2.5,      # do blind clicks ke beech gap
+    "blind_gap": 4.0,           # itne second tak kuch na mila ho tabhi blind click
+                                # (click ke turant baad page load ho raha ho to nahi)
     "debug": False,
 }
 
@@ -917,6 +922,7 @@ def analyse(frame_rgb, region=None, words=None, go_required=True,
     return {
         'margin': margin, 'strong_match': strong, 'target_missing': target_missing,
         'slot_state': slot_st, 'slot_text': slot_txt,
+        'fp': strip_fingerprint(frame_rgb, strip),
         'status': 'ok' if (go_here or not go_required) else 'wait_go',
         'cells': cells, 'strip': strip, 'target_idx': target_idx,
         'box_idx': box_idx, 'box_rel': [i - target_idx for i in box_idx],
@@ -1062,6 +1068,27 @@ def _holes(mask):
     return h
 
 
+def strip_fingerprint(frame_rgb, strip):
+    """Poore CAPTCHA strip ka chhota fingerprint — naya CAPTCHA aaya ya nahi, pata chale."""
+    arr = np.array(frame_rgb)
+    H, W = arr.shape[:2]
+    x0, y0, x1, y1 = [int(v) for v in strip]
+    x0, y0 = max(0, x0), max(0, y0)
+    x1, y1 = min(W, x1), min(H, y1)
+    if x1 - x0 < 8 or y1 - y0 < 8:
+        return None
+    g = cv2.cvtColor(arr[y0:y1, x0:x1], cv2.COLOR_RGB2GRAY)
+    g = cv2.resize(g, (48, 12), interpolation=cv2.INTER_AREA).astype(np.float32)
+    return g
+
+
+def fp_diff(a, b):
+    """Do fingerprint me average difference (0 = bilkul same)."""
+    if a is None or b is None:
+        return 99.0
+    return float(np.abs(a - b).mean())
+
+
 def _slot_verdict(comps):
     """
     Fast geometry verdict: 'go' / 'timer' / None (confuse -> OCR).
@@ -1086,11 +1113,11 @@ def _slot_verdict(comps):
             return 'timer'
         if holes == 0:
             return 'timer'         # '11' / '17' — dono me hole nahi
-        if h_ratio >= 0.88:
-            return None            # barabar height + hole = '18' ya "GO" -> OCR
-        if h_ratio >= 0.55:
-            return 'go'            # 'G' + chhoti 'o' (asli GO aisa hi hota hai)
-        return None                # confuse -> OCR
+        if h_ratio >= 0.85:
+            return None            # barabar height = digits (18/19) ya GO caps -> OCR
+        if h_ratio >= 0.35:
+            return 'go'            # 'G' badi + 'o' chhoti (asli GO aisa hi hota hai)
+        return None                # bahut mismatch -> OCR
     return 'timer'                 # 3+ glyphs = digits/numbers
 
 
@@ -1110,8 +1137,9 @@ def _slot_is_go(comps):
         a, b = comps
         w_ratio = min(a['w'], b['w']) / max(1.0, max(a['w'], b['w']))
         h_ratio = min(a['h'], b['h']) / max(1.0, max(a['h'], b['h']))
-        holes = _holes(a.get('mask')) + _holes(b.get('mask'))
-        return (w_ratio >= 0.55 and h_ratio >= 0.60 and holes == 1)
+        if w_ratio < 0.35:
+            return False                       # '10' jaisa mismatch
+        return 0.35 <= h_ratio < 0.85          # digits barabar, 'Go' me o chhoti
     return False
 
 
@@ -1137,13 +1165,12 @@ def slot_state(frame_rgb, slot, ocr_cache=None):
     comps = _blue_components(sub)
     if not comps:
         return 'empty', ''
-    # slot ke bahar wale (page ke blue links/ads) ignore — sirf bade glyphs
-    big = [c for c in comps if c['h'] >= 0.18 * (y1 - y0)]
-    if big:
-        comps = big
+    # bahut chhote blue dots/bullets ignore (text glyphs nahi)
+    comps = [c for c in comps if c['h'] >= max(6, 0.05 * (y1 - y0))]
 
-    # ⚡ 1) GEOMETRY (fast, OCR nahi)
-    state = _slot_verdict(comps)
+    # ⚡ 1) GEOMETRY (fast) — sirf 1 glyph (9/8/7) par bharosa.
+    # 2+ glyph = sautan ("10" vs "Go") -> OCR se pakka karo (cached, ek baar)
+    state = _slot_verdict(comps) if len(comps) == 1 else None
     if state is not None:
         if ocr_cache is not None:
             ocr_cache['state'] = state
@@ -1272,6 +1299,28 @@ def _go_blob_cell(arr, cells, target_idx):
 
 
 # ==================== CLICK ====================
+def click_xy(screen, px, py, clicks=None):
+    """Seedha point par click (cell ke bahar se) — blind click ke liye."""
+    lx, ly = screen.to_logical(px, py)
+    lim_w = getattr(screen, 'logi_w', 0) or getattr(screen, 'shot_w', 0)
+    lim_h = getattr(screen, 'logi_h', 0) or getattr(screen, 'shot_h', 0)
+    if lx < 0 or ly < 0 or (lim_w and lx >= lim_w) or (lim_h and ly >= lim_h):
+        log(f"{C.RED}❌ click point screen ke bahar ({lx:.0f},{ly:.0f}) — skip{C.RESET}")
+        return False
+    pyautogui.moveTo(lx, ly, duration=0.05)
+    time.sleep(CONFIG['click_delay'])
+    n = CONFIG.get('clicks', 1) if clicks is None else clicks
+    n = max(1, min(3, int(n)))
+    for i in range(n):
+        pyautogui.mouseDown()
+        time.sleep(0.05)
+        pyautogui.mouseUp()
+        if i + 1 < n:
+            time.sleep(0.08)
+    log(f"{C.GREEN}🖱️  CLICK ({int(lx)}, {int(ly)}){C.RESET}")
+    return True
+
+
 def click_cell(screen, cell, region=None, clicks=None, jitter=0):
     x1, y1, x2, y2 = cell
     if region:
@@ -1292,9 +1341,7 @@ def click_cell(screen, cell, region=None, clicks=None, jitter=0):
             f"— screen {lim_w}x{lim_h}. Click skip.{C.RESET}")
         return False
 
-    pyautogui.moveTo(lx, ly, duration=0.05)
-    time.sleep(CONFIG['click_delay'])
-
+    ok = click_xy(screen, px, py, clicks)
     # moveTo ne kaam kiya? (DPI galat ho to yahan pakda jayega)
     try:
         got = pyautogui.position()
@@ -1303,18 +1350,7 @@ def click_cell(screen, cell, region=None, clicks=None, jitter=0):
                 f"expected ({int(lx)},{int(ly)}) — display scaling issue{C.RESET}")
     except Exception:
         pass
-
-    n = CONFIG.get('clicks', 1) if clicks is None else clicks
-    n = max(1, min(3, int(n)))
-    for i in range(n):
-        pyautogui.mouseDown()
-        time.sleep(0.05)
-        pyautogui.mouseUp()
-        if i + 1 < n:
-            time.sleep(0.08)
-    log(f"{C.GREEN}🖱️  CLICK{(' x' + str(n)) if n > 1 else ''} "
-        f"({int(lx)}, {int(ly)}){C.RESET}")
-    return True
+    return ok
 
 
 def calibrate(screen):
@@ -1553,8 +1589,55 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
     last_nogo_log = 0.0
     last_slot_txt = ''
     bad_streak = 0
+    last_seen_layout = time.time() if layout else 0.0
+    last_click_pt = None        # aakhri click kahan hua (blind click ke liye)
+    known_pt = None             # last known CAPTCHA area (blind click ke liye)
+    if layout and layout.get('click'):
+        _c = layout['click']
+        known_pt = (_c['x'] + _c['w'] / 2.0, _c['y'] + _c['h'] / 2.0)
+    state_since = time.time()   # ye status kab se chal raha hai
+    last_status = ''            # pichla status (transition detect ke liye)
+
+    def blind_due(since):
+        """CAPTCHA detect nahi ho raha — seedha click karna chahiye?"""
+        if not CONFIG['blind_click'] or dry_run:
+            return False
+        if (time.time() - since) < CONFIG['blind_after']:
+            return False
+        if (time.time() - last_click) < CONFIG['blind_cooldown']:
+            return False
+        # page transition me na click karein (click/detection ke turant baad)
+        if (time.time() - max(last_seen_layout, last_click)) < CONFIG['blind_gap']:
+            return False
+        # pehle kabhi CAPTCHA mila ho (warna kisi bhi page par random click!)
+        return (time.time() - last_seen_layout) < 300
+
+    blind_count = 0             # lagataar blind clicks (safety limit)
+
+    def do_blind_click():
+        nonlocal last_click, last_click_pt, blind_count
+        if blind_count >= 5:
+            if blind_count == 5:
+                log(f"{C.RED}🛑 5 blind clicks ho gaye, CAPTCHA phir bhi nahi mila — "
+                    f"blind clicking band. `--manual` se region do.{C.RESET}")
+                blind_count = 6
+            return
+        blind_count += 1
+        pt = last_click_pt or known_pt
+        if pt is None and layout and layout.get('click'):
+            c = layout['click']
+            pt = (c['x'] + c['w'] / 2.0, c['y'] + c['h'] / 2.0)
+        if pt is None:
+            pt = ((getattr(screen, 'shot_w', 0) or 1920) / 2.0,
+                  (getattr(screen, 'shot_h', 0) or 1080) / 2.0)
+        log(f"{C.YELLOW}🕳️  CAPTCHA detect nahi hua — seedha click (GO ka intezaar nahi): "
+            f"({pt[0]:.0f},{pt[1]:.0f}){C.RESET}")
+        click_xy(screen, pt[0], pt[1])
+        last_click = time.time()
+        last_click_pt = pt
     seen_sig = None         # is CAPTCHA ka target shape (wait timer reset ke liye)
     strip_since = 0.0       # CAPTCHA pehli baar kab dikha
+    pending_fp = None       # click ke baad poore CAPTCHA ka fingerprint
     pending_sig = None      # click ke baad target shape (verify ke liye)
     pending_local = -1
     click_attempts = 0
@@ -1566,9 +1649,21 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
             if layout is None:
                 # ---- AUTO-DETECT: saare 'Click' candidates me se asli CAPTCHA ----
                 res = analyse(frame, region=region, go_required=go_required, check_go=True)
+                if res['status'] != last_status:
+                    last_status, state_since = res['status'], time.time()
+                if res['status'] not in BAD_STATES:
+                    last_seen_layout = time.time()
+                    blind_count = 0
+                    if res.get('cells'):
+                        _c = res['cells'][res['target_idx']]
+                        known_pt = ((_c[0] + _c[2]) / 2.0 + (region[0] if region else 0),
+                                    (_c[1] + _c[3]) / 2.0 + (region[1] if region else 0))
                 if res['status'] in BAD_STATES:
                     seen_sig, strip_since = None, 0.0
                     bad_streak += 1
+                    if blind_due(state_since):
+                        do_blind_click()
+                        continue
                     if last_state != res['status']:
                         reason = (f" [{STRIP_FAIL}]"
                                   if res['status'] == 'no_strip' and STRIP_FAIL else '')
@@ -1591,14 +1686,26 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
                 if debug:
                     log('   debug: ' + str(save_debug(frame, res, 'locate')))
             else:
-                # ---- FAST TRACK: cached layout, ~10ms/frame ----
+                # ---- FAST TRACK: cached layout, ~10ms/frame (fast) ----
                 # box_rel cache me nahi bhejte — har frame par cells se recompute
                 # hota hai, taaki layout badalne par galat cell na chune
                 res = analyse(frame, region=region, click_word=layout['click'],
                               check_go=True, go_required=go_required)
+                if res['status'] != last_status:
+                    last_status, state_since = res['status'], time.time()
+                if res['status'] not in BAD_STATES:
+                    last_seen_layout = time.time()
+                    blind_count = 0
+                    if res.get('cells'):
+                        _c = res['cells'][res['target_idx']]
+                        known_pt = ((_c[0] + _c[2]) / 2.0 + (region[0] if region else 0),
+                                    (_c[1] + _c[3]) / 2.0 + (region[1] if region else 0))
                 if res['status'] in BAD_STATES:
                     seen_sig, strip_since = None, 0.0
                     bad_streak += 1
+                    if blind_due(state_since):
+                        do_blind_click()
+                        continue
                     if bad_streak >= 3:
                         log(f"{C.CYAN}🔄 Layout nahi mila — dobara auto-detect{C.RESET}")
                         layout = None
@@ -1642,23 +1749,30 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
                     else:
                         click_cell(screen, res['cells'][_pi], region, CONFIG['clicks'])
                         pending_sig = res.get('target_sig')
+                        pending_fp = res.get('fp')
                         pending_local = _pi
                         click_attempts = 1
                         time.sleep(1.2)
                     last_click = time.time()
+                    _c = res['cells'][_pi]
+                    last_click_pt = ((_c[0] + _c[2]) / 2.0 + (region[0] if region else 0),
+                                     (_c[1] + _c[3]) / 2.0 + (region[1] if region else 0))
                     wait_since = time.time()
                     last_state = ''
                 # 'GO' ke liye tez polling (sirf blue blob check hota hai)
                 time.sleep(min(CONFIG['scan_interval'], 0.1))
                 continue
 
-            # ---- click register hua? (wahi CAPTCHA dikh raha hai to retry) ----
+            # ---- click register hua? (poora CAPTCHA wahi hai to retry) ----
+            # sirf shape same hone se retry NA karo — do alag CAPTCHA ka shape
+            # milta-julta ho sakta hai, aur tab "time ke baad" click hota dikhta tha
             if pending_sig is not None and res.get('target_sig') is not None:
-                same = iou(pending_sig, res['target_sig']) > 0.85
+                same = (iou(pending_sig, res['target_sig']) > 0.85
+                        and fp_diff(pending_fp, res.get('fp')) < 4.0)
                 if same:
-                    if click_attempts < 3 and (time.time() - last_click) > 2.0:
+                    if click_attempts < 2 and (time.time() - last_click) > 2.0:
                         log(f"{C.YELLOW}⚠️  Click register nahi hua — dobara try "
-                            f"({click_attempts}/3){C.RESET}")
+                            f"({click_attempts}/2){C.RESET}")
                         _pi, _rs, _sc = choose_box(res)
                         if not dry_run and _pi is not None:
                             click_cell(screen, res['cells'][_pi], region,
@@ -1667,8 +1781,8 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
                         last_click = time.time()
                         time.sleep(1.0)
                         continue
-                    if click_attempts >= 3:
-                        log(f"{C.RED}❌ 3 baar click kiya par CAPTCHA wahi hai — "
+                    if click_attempts >= 2:
+                        log(f"{C.RED}❌ baar baar click kiya par CAPTCHA wahi hai — "
                             f"site/coordinates issue. --calibrate chalao.{C.RESET}")
                         pending_sig, click_attempts = None, 0
                 else:
@@ -1714,7 +1828,11 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
                 else:
                     click_cell(screen, res['cells'][pick_idx], region, CONFIG['clicks'])
                 last_click = time.time()
+                _c = res['cells'][pick_idx]
+                last_click_pt = ((_c[0] + _c[2]) / 2.0 + (region[0] if region else 0),
+                                 (_c[1] + _c[3]) / 2.0 + (region[1] if region else 0))
                 pending_sig = res.get('target_sig')
+                pending_fp = res.get('fp')
                 pending_local = pick_idx
                 click_attempts = 1
                 # layout rakho: agla CAPTCHA wahi jagah hota hai -> fast
@@ -1790,6 +1908,10 @@ def main():
                     help="'Go' ka intezaar mat karo — boxes milte hi click")
     ap.add_argument('--go-timeout', type=float, default=CONFIG['go_timeout'],
                     help="itne second 'Go' na mile to phir bhi click (default 0 = sirf 'Go' par click)")
+    ap.add_argument('--no-blind', action='store_true',
+                    help='CAPTCHA detect na ho to seedha click mat karo')
+    ap.add_argument('--blind-after', type=float, default=CONFIG['blind_after'],
+                    help='itne second tak detect na ho to blind click (default 1.2)')
     ap.add_argument('--wait', type=float, default=CONFIG['min_wait'],
                     help='CAPTCHA dikhne ke baad itne second click nahi (default 11, 0 = off)')
     ap.add_argument('--min-match', type=float, default=CONFIG['min_match'],
@@ -1809,6 +1931,8 @@ def main():
     CONFIG['clicks'] = max(1, min(3, args.clicks))
     CONFIG['min_match'] = args.min_match
     CONFIG['min_wait'] = max(0.0, args.wait)
+    CONFIG['blind_click'] = not args.no_blind
+    CONFIG['blind_after'] = max(0.2, args.blind_after)
     CONFIG['go_timeout'] = max(0.0, args.go_timeout)
 
     if args.selftest:

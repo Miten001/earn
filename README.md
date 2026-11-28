@@ -59,6 +59,9 @@ aur shapes **patli colored lines** (blue/green/red) se bante hain.
   digit = ruk jao, **"GO" = turant click**. Apna koi 11s timer nahi lagaya jata
 - 🛡️ **False "GO" fix** — countdown ka blue digit, clue cell ka bada "G", ya ad ka
   "Go" — inme se koi bhi ab GO nahi maana jata (sirf timer wali jagah dekhi jati hai)
+- 🕳️ **Blind click** — agar CAPTCHA hi detect na ho (page badal gaya / galat page) to
+  4s baad khud seedha click kar deta hai (GO ka intezaar nahi). 5 blind clicks ke baad
+  ruk jata hai. `--no-blind` se band
 - 🧱 **no_strip fallback** — lines halki/blur ho to page ke background color se strip
   aur cells nikale jate hain (aakhri rasta)
 - 🚫 **Ad banner safe** — page ke ads (jo CAPTCHA jaisa dikhte hain) cells me count nahi hote
@@ -88,6 +91,8 @@ python clicker.py --calibrate      # screenshot/click mapping check (kuch click 
 python clicker.py --no-wait-go     # 'Go' ka intezaar nahi, seedha click
 python clicker.py --go-timeout 3   # 3s me Go na mile to phir bhi click (default: sirf Go par)
 python clicker.py --wait 5         # extra safety: 5s tak click nahi (default 0 = off)
+python clicker.py --no-blind       # CAPTCHA na mile to bhi click mat karo
+python clicker.py --blind-after 2  # 2s tak detect na ho to seedha click
 python clicker.py --min-match 0.4  # match ka threshold (kam = zyada "match" maanega)
 python clicker.py --clicks 2       # double-click kare
 ```
@@ -139,6 +144,8 @@ Dono usi folder me bante hain jahan `clicker.py` hai.
 | Click bahut late ho raha | `--go-timeout 0` (default) rakho — click sirf "GO" dikhne par hota hai |
 | **Timer ke andar hi click ho jata hai** | Fix ho gaya — countdown digit (9,8,7) ab timer maana jata hai, GO nahi. `--debug` se `debug/` image bhejo agar phir bhi ho |
 | **Log me `no_strip` aata hai** | Ab background-color fallback hai; phir bhi aaye to `--manual` se region select karo |
+| **`🕳️ seedha click` bahut baar** | `--no-blind` lagao, ya `--manual` se region do (tab detection pakki ho jati hai) |
+| **Time khatam hone par click** | Fix: retry ab poore CAPTCHA ka fingerprint dekhta hai (pehle sirf shape) |
 | **`no_target` aata tha** | Fix ho gaya — clue shape na mile to bhi 3 me se random box click hota hai |
 | Click galat jagah | display scaling ho sakti hai — tool auto-detect karta hai, log me "Display scaling detect hui" dikhega |
 | "Go" na pehchane | "Go" button ka screenshot bhejo — blue-blob fallback tune karenge |
