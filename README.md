@@ -75,7 +75,10 @@ aur shapes **patli colored lines** (blue/green/red) se bante hain.
   "captcha detect hi nahi ho raha" wali problem khatam
 - 🎨 **"GO" kisi bhi color me** — timer/GO slot me ab sirf *blue* nahi, **kisi bhi rang ka ink**
   dekha jata hai (blue / green / black / red). Border-table ki lines filter hoti hain, aur
-  door wala logo/banner (blue text) ignore hota hai
+  door wala logo/banner (bada letter) ignore hota hai
+- ✂️ **"Go" ke dono letters** — slot window itna chauda hai ki `G` + `o` dono aa jayein (pehle
+  sirf `G` dikhta tha aur wo digit jaisa lagta tha → kabhi click na hota). Sirf paas wale,
+  ek hi size ke glyph ek saath gine jate hain
 - 🌐 **Browser background me bhi** — poori screen scan karta hai, window focus ki zaroorat nahi
 - 🖥️ **DPI-aware mode** — process ko per-monitor DPI-aware banata hai, isliye screenshot aur
   click dono **physical pixels** me hote hain → 125%/150% scaling par bhi click bilkul sahi jagah
