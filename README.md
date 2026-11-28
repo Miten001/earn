@@ -46,9 +46,10 @@ aur shapes **patli colored lines** (blue/green/red) se bante hain.
 - 🌗 **Adaptive borders** — Otsu + 6 thresholds (light/antialiased borders, chhota zoom — sab par kaam)
 - 🎯 **Smart auto-detect** — page par jitne bhi "Click" words hain (ads me bhi), sab check karke
   wahi chunta hai jiske paas **asli strip + "Go"** hai — `--manual` ki zaroorat nahi
-- ⚡ **Fast** — ek baar locate, phir ~15 ms/frame (Go blue-blob se, OCR nahi);
-  `layout_cache.json` se agli baar **instant start**
-- 🎯 **Turant click** — "GO" pehli baar dikha, usi frame me click (koi 2-frame wait nahi)
+- ⚡ **Fast** — ek baar locate, phir **~50–120 ms/frame**; timer/GO sirf blue blobs se
+  padha jata hai (per-frame OCR **nahi**), `layout_cache.json` se agli baar **instant start**
+- 🎯 **Turant click** — "GO" pehli baar dikha, usi frame me click (**GO → click ≈ 20–50 ms**),
+  mouse move 0.05s + chhota click delay
 - 🧭 **Layout auto-detect** — "Click" cell, boxes aur "Go" khud pehchanta hai
 - 🔢 **3, 4, 5... boxes** — dividers se count hota hai; **aakhri (clue) box kabhi click nahi hota**
 - 🧩 **Clue box = sabse aakhri** — usme laal "Click" + ek shape hota hai; pehle 3 boxes me wahi
@@ -134,6 +135,7 @@ Dono usi folder me bante hain jahan `clicker.py` hai.
 | Galat box click ho raha | `--dry-run` se check karo, phir `debug/` wali image bhejo (scores usme dikhte hain) |
 | Log me `[RANDOM — clue ka match nahi mila]` | Clue jaisa shape kisi box me nahi mila, isliye 3 me se random box clicka (design ke hisaab se normal) |
 | Clue box (aakhri) click ho raha | Aisa nahi hona chahiye — `debug/` image bhejo, cells ka partition galat detect hua hai |
+| **GO aane ke baad click late hota hai** | Fix: timer/GO ab sirf blue-blob geometry se padha jata hai (per-frame OCR hataya), GO ke liye polling 0.1s. `--interval 0.1` se aur tez |
 | Click bahut late ho raha | `--go-timeout 0` (default) rakho — click sirf "GO" dikhne par hota hai |
 | **Timer ke andar hi click ho jata hai** | Fix ho gaya — countdown digit (9,8,7) ab timer maana jata hai, GO nahi. `--debug` se `debug/` image bhejo agar phir bhi ho |
 | **Log me `no_strip` aata hai** | Ab background-color fallback hai; phir bhi aaye to `--manual` se region select karo |
