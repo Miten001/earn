@@ -65,14 +65,17 @@ aur shapes **patli colored lines** (blue/green/red) se bante hain.
 - 🧱 **no_strip fallback** — lines halki/blur ho to page ke background color se strip
   aur cells nikale jate hain (aakhri rasta)
 - 🚫 **Ad banner safe** — page ke ads (jo CAPTCHA jaisa dikhte hain) cells me count nahi hote
-- 🪟 **Multi-window / multi-tab** — ek saath **5-6 CAPTCHA** chal rahe hon to sabko track karta
-  hai; **jis CAPTCHA ka apna "GO" aata hai, usi par usi waqt** click hota hai
+- 🪟 **Multi-window / multi-tab** — ek saath **8-10 (max 12) CAPTCHA** chal rahe hon to bhi
+  sabko track karta hai; **jis CAPTCHA ka apna "GO" aata hai, usi par usi waqt** click hota
+  hai (har CAPTCHA par sirf ek click). 10 CAPTCHA par bhi frame ~50 ms rehta hai
 - 🎯 **Sabse pakka CAPTCHA chunta hai** — har candidate ko score milta hai (cells, clue aakhri
   me, GO/timer slot, aspect). Ad/decoy (score kam) list me hi nahi aate
 - 🌐 **Browser background me bhi** — poori screen scan karta hai, window focus ki zaroorat nahi
 - 🖥️ **DPI-aware mode** — process ko per-monitor DPI-aware banata hai, isliye screenshot aur
   click dono **physical pixels** me hote hain → 125%/150% scaling par bhi click bilkul sahi jagah
-- ⚡ **Fast tracking** — CAPTCHA ek baar milne par har frame me sirf chhota hissa check hota hai (~10 ms)
+- ⚡ **Fast tracking** — CAPTCHA ek baar milne par har frame me sirf timer/GO wala chhota
+  hissa dekha jata hai (~2 ms per CAPTCHA); poora shape-match sirf usi waqt chalta hai jab
+  us CAPTCHA ka "GO" aa jaye — isliye 10 browser me bhi GO late nahi padta
 
 ### Use
 
