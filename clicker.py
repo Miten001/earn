@@ -992,6 +992,7 @@ def analyse(frame_rgb, region=None, words=None, go_required=True,
     # karte warna ad ya countdown digit (9,8,7) bhi "Go" ban jata hai.
     go_here = False
     slot_st, slot_txt = '', ''
+    slot_debug = {}
     if check_go:
         anchor = cells[target_idx]
         st_global = (anchor[2], strip[1], anchor[2], strip[3])
@@ -999,7 +1000,8 @@ def analyse(frame_rgb, region=None, words=None, go_required=True,
             st_global = (st_global[0] + region[0], st_global[1] + region[1],
                          st_global[2] + region[0], st_global[3] + region[1])
         try:
-            slot_st, slot_txt = go_state(frame_rgb, st_global)
+            slot_st, slot_txt = go_state(frame_rgb, st_global,
+                                         detail=slot_debug)
             go_here = (slot_st == 'go')
         except Exception:
             go_here = False
@@ -1014,6 +1016,7 @@ def analyse(frame_rgb, region=None, words=None, go_required=True,
     return {
         'margin': margin, 'strong_match': strong, 'target_missing': target_missing,
         'slot_state': slot_st, 'slot_text': slot_txt,
+        'slot_debug': slot_debug,
         'fp': strip_fingerprint(frame_rgb, strip),
         'status': 'ok' if (go_here or not go_required) else 'wait_go',
         'cells': cells, 'strip': strip, 'target_idx': target_idx,
@@ -1143,6 +1146,38 @@ def _blue_components(sub):
     return out
 
 
+def _ink_components(sub):
+    """
+    Slot me likha kisi bhi color ka ink (blue / green / black / red ...).
+    Pehle sirf *blue* dhoondha jata tha — agar site "GO" ko doosre color me
+    likhe to blob hi nahi milta aur kabhi click na hota.
+    Background window ke median se liya jata hai (light cream / halka color bhi chalega).
+    """
+    if sub is None or sub.size == 0:
+        return []
+    a = sub.astype(np.float32)
+    gray = 0.299 * a[:, :, 0] + 0.587 * a[:, :, 1] + 0.114 * a[:, :, 2]
+    med = float(np.median(gray))
+    thr = min(205.0, med - 45.0)
+    ink = gray < thr
+    if not ink.any():
+        return []
+    H, W = ink.shape
+    n, lab, st, _ = cv2.connectedComponentsWithStats(ink.astype(np.uint8) * 255)
+    out = []
+    for i in range(1, n):
+        area = int(st[i, cv2.CC_STAT_AREA])
+        if area < 25:
+            continue
+        x_, y_ = int(st[i, cv2.CC_STAT_LEFT]), int(st[i, cv2.CC_STAT_TOP])
+        w_, h_ = int(st[i, cv2.CC_STAT_WIDTH]), int(st[i, cv2.CC_STAT_HEIGHT])
+        if w_ < 3 or h_ < 5:
+            continue
+        out.append({'x': x_, 'y': y_, 'w': w_, 'h': h_, 'area': area,
+                    'mask': ink[y_:y_ + h_, x_:x_ + w_].astype(np.uint8)})
+    return out
+
+
 def _holes(mask):
     """Glyph ke andar kitne band (hole) hain — 'O'/'0' me 1, 'G'/'1' me 0."""
     if mask is None or mask.size == 0:
@@ -1235,7 +1270,7 @@ def _slot_is_go(comps):
     return False
 
 
-def slot_state(frame_rgb, slot, ocr_cache=None):
+def slot_state(frame_rgb, slot, ocr_cache=None, detail=None, mode='ink'):
     """
     Timer/GO wali jagah ka haal:
       'empty'  — kuch nahi
@@ -1254,11 +1289,33 @@ def slot_state(frame_rgb, slot, ocr_cache=None):
     if x1 - x0 < 8 or y1 - y0 < 8:
         return 'empty', ''
     sub = arr[y0:y1, x0:x1]
-    comps = _blue_components(sub)
+    slot_h = y1 - y0
+    if mode == 'ink':
+        # kisi bhi color ka ink — site "GO" kisi bhi rang me likh sakta hai
+        # (par border/table ki lines ko chhodna zaroori hai — wo bhi "ink" hain)
+        win_w = x1 - x0
+        comps = []
+        for c in _ink_components(sub):
+            if c['h'] < max(6, 0.05 * slot_h) or c['h'] > 0.88 * slot_h:
+                continue
+            ar = c['w'] / max(1.0, float(c['h']))
+            if ar > 6.0 or ar < 0.12:          # line jaisa (bahut lamba/patla)
+                continue
+            if c['w'] >= 0.75 * win_w:         # poori window jitni line
+                continue
+            comps.append(c)
+    else:
+        comps = [c for c in _blue_components(sub)
+                 if c['h'] >= max(6, 0.05 * slot_h)]
     if not comps:
         return 'empty', ''
-    # bahut chhote blue dots/bullets ignore (text glyphs nahi)
-    comps = [c for c in comps if c['h'] >= max(6, 0.05 * (y1 - y0))]
+    if detail is not None:
+        try:
+            detail.update({'blobs': len(comps),
+                           'size': f"{max(c['w'] for c in comps)}x{max(c['h'] for c in comps)}",
+                           'holes': sum(_holes(c.get('mask')) for c in comps)})
+        except Exception:
+            pass
     if not comps:
         return 'empty', ''
     # timer/GO ke glyphs paas paas hote hain; page ka doosra blue text
@@ -1306,6 +1363,8 @@ def slot_state(frame_rgb, slot, ocr_cache=None):
             words = ocr_words(Image.fromarray(big_c), upscale=1, psm=7)
             txt = ' '.join(_clean(w['text']) for w in words if w.get('text')).strip()
             text = txt
+            if detail is not None:
+                detail['ocr_crop'] = crop
             if txt:
                 broad = (len(comps) >= 2
                          or (comps[0]['w'] / max(1.0, comps[0]['h'])) > 1.05)
@@ -1325,7 +1384,7 @@ def slot_state(frame_rgb, slot, ocr_cache=None):
     return state, text
 
 
-def go_state(frame_rgb, strip, detect_fn=None, allow_ocr=True):
+def go_state(frame_rgb, strip, detect_fn=None, allow_ocr=True, detail=None):
     """
     Timer/GO wali jagah ka haal: ('go' | 'timer' | 'empty', text)
     Pehle slot_state() — wahi digit (9,8,7..) aur "GO" me farq karta hai.
@@ -1336,20 +1395,30 @@ def go_state(frame_rgb, strip, detect_fn=None, allow_ocr=True):
     h = max(20, strip[3] - strip[1])
     # GO/countdown strip ke bilkul right me hota hai — chhota area lo,
     # warna page ka doosra text bhi OCR me aa jata hai
-    x0 = max(0, strip[2] - 2); x1 = min(W, strip[2] + int(2.4 * h))
+    x0 = max(0, strip[2] - 2)
     y0 = max(0, strip[1] - int(0.15 * h)); y1 = min(H, strip[3] + int(0.15 * h))
-    if x1 - x0 < 10 or y1 - y0 < 10:
+    if y1 - y0 < 10:
         return 'empty', ''
 
-    # 🔵 PEHLE slot ka haal: countdown digit (9,8,7..) ko GO samajhna band
-    try:
-        _key = (x0, y0, x1, y1)
+    # 2 pass:
+    #   1) paas wala window (1.7h) -> KISI BHI color ka ink (GO kisi rang me ho)
+    #   2) thoda door (2.4h) -> sirf blue ink (logo/green image se bachne ke liye)
+    for _span, _mode in ((1.7, 'ink'), (2.4, 'blue')):
+        x1 = min(W, strip[2] + int(_span * h))
+        if x1 - x0 < 10:
+            continue
+        _key = (x0, y0, x1, y1, _mode)
         _c = _SLOT_CACHE.setdefault(_key, {})
-        st, _txt = slot_state(frame_rgb, (x0, y0, x1, y1), _c)
-        if st in ('go', 'timer'):
-            return st, _txt
-    except Exception:
-        pass
+        if detail is not None:
+            detail['slot'] = (x0, y0, x1, y1)
+            detail['mode'] = _mode
+        try:
+            st, _txt = slot_state(arr, (x0, y0, x1, y1), _c, detail=detail,
+                                  mode=_mode)
+            if st in ('go', 'timer'):
+                return st, _txt
+        except Exception:
+            pass
 
     if not allow_ocr:
         return 'empty', ''
@@ -1704,12 +1773,14 @@ def find_captchas(gray, arr, words):
     H, W = gray.shape[:2]
     words = list(words or [])
     cands = [w for w in words if 'click' in _clean(w['text']) and w['h'] >= 6]
+    weak = []                       # sosha laal words (page text) — last resort
     if not cands:
         # OCR ne 'Click' miss kiya -> laal label geometry se dhoondho
         reds = _red_click_words(arr)
         if reds:
             words = words + reds
-            cands = reds
+            cands = [w for w in reds if w.get('solo', True)]
+            weak = [w for w in reds if not w.get('solo', True)]
     if not cands:
         return []
 
@@ -1717,42 +1788,49 @@ def find_captchas(gray, arr, words):
            if _clean(w['text']) in ('go', 'g0')
            or (_clean(w['text']).startswith('go') and len(_clean(w['text'])) <= 3)]
 
-    out = []
-    for c in cands:
-        cells, strip = detect_strip(gray, c, arr=arr)
-        if not cells or not (2 <= len(cells) <= 8):
-            continue
-        ti = next((i for i, cc in enumerate(cells) if cell_has_word(cc, c)), None)
-        if ti is None:
-            continue
-        # duplicate strip (ek hi CAPTCHA ke 2 'click' words) -> skip
-        if any(_overlap(strip, o['strip']) > 0.55 for o in out):
-            continue
+    def _scan(cand_list):
+        out = []
+        for c in cand_list:
+            cells, strip = detect_strip(gray, c, arr=arr)
+            if not cells or not (2 <= len(cells) <= 8):
+                continue
+            ti = next((i for i, cc in enumerate(cells) if cell_has_word(cc, c)), None)
+            if ti is None:
+                continue
+            # duplicate strip (ek hi CAPTCHA ke 2 'click' words) -> skip
+            if any(_overlap(strip, o['strip']) > 0.55 for o in out):
+                continue
 
-        # ---- score: kaunsa CAPTCHA sabse "pakka" lagta hai ----
-        score = 0
-        n = len(cells)
-        if n == 4:
-            score += 3               # naya layout (3 box + clue)
-        elif 3 <= n <= 7:
-            score += 2
-        if ti == n - 1:
-            score += 1               # clue cell aakhri me
-        if any(cell_has_word(cc, g) for cc in cells for g in gos):
-            score += 3               # paas me 'Go' word
-        h = max(1, strip[3] - strip[1])
-        w = max(1, strip[2] - strip[0])
-        if 2.0 <= w / float(h) <= 8.0:
-            score += 1               # CAPTCHA jaisa aspect
-        # slot me timer/GO dikh raha hai? (sabse strong signal)
-        try:
-            st, _ = go_state(np.array(Image.fromarray(arr)), (strip[2], strip[1], strip[2], strip[3]))
-            if st in ('go', 'timer'):
-                score += 3
-        except Exception:
-            pass
-        out.append({'click': c, 'cells': cells, 'strip': strip,
-                    'target_idx': ti, 'score': score})
+            # ---- score: kaunsa CAPTCHA sabse "pakka" lagta hai ----
+            score = 0
+            n = len(cells)
+            if n == 4:
+                score += 3               # naya layout (3 box + clue)
+            elif 3 <= n <= 7:
+                score += 2
+            if ti == n - 1:
+                score += 1               # clue cell aakhri me
+            if any(cell_has_word(cc, g) for cc in cells for g in gos):
+                score += 3               # paas me 'Go' word
+            h = max(1, strip[3] - strip[1])
+            w = max(1, strip[2] - strip[0])
+            if 2.0 <= w / float(h) <= 8.0:
+                score += 1               # CAPTCHA jaisa aspect
+            # slot me timer/GO dikh raha hai? (sabse strong signal)
+            try:
+                st, _ = go_state(np.array(Image.fromarray(arr)), (strip[2], strip[1], strip[2], strip[3]))
+                if st in ('go', 'timer'):
+                    score += 3
+            except Exception:
+                pass
+            out.append({'click': c, 'cells': cells, 'strip': strip,
+                        'target_idx': ti, 'score': score})
+        return out
+
+    out = _scan(cands)
+    if not out and weak:
+        # laal page-text se bhi kuch na bana -> ab soshe candidates try karo
+        out = _scan(weak)
     out.sort(key=lambda d: -d['score'])
     # kamzor candidates (ad/banner jaisa) hata do — "wrong captcha" click na ho
     strong = [d for d in out if d['score'] >= 3]
@@ -1831,13 +1909,27 @@ def run_multi(screen, region=None, dry_run=False, debug=False, go_required=True)
                 cw_local = dict(tr['click'])
                 cw_local['x'] -= reg[0]; cw_local['y'] -= reg[1]
 
-                # ⚡ 1) SIRF slot dekho (blue blobs, ~2ms) — timer chalta rehta hai
+                # ⚡ 1) SIRF slot dekho (~2ms) — timer chalta rehta hai
+                _dbg = {}
                 st, _txt = go_state(arr, (tr['strip'][2], tr['strip'][1],
-                                          tr['strip'][2], tr['strip'][3]))
+                                          tr['strip'][2], tr['strip'][3]),
+                                    detail=_dbg)
                 if st != 'go':
-                    if _txt and _txt != tr.get('slot_txt'):
-                        tr['slot_txt'] = _txt
-                        log_t(i, f"{C.YELLOW}⏳ timer: {_txt}{C.RESET}")
+                    _key = (st, _dbg.get('blobs'), _dbg.get('size'),
+                            _dbg.get('holes'), _txt)
+                    if _key != tr.get('slot_key'):
+                        tr['slot_key'] = _key
+                        _info = (f"blobs={_dbg.get('blobs')} {_dbg.get('size')} "
+                                 f"holes={_dbg.get('holes')} '{_txt}'")
+                        log_t(i, f"{C.YELLOW}⏳ slot {st}: {_info}{C.RESET}")
+                        _sl = _dbg.get('slot')
+                        if _sl:
+                            try:
+                                Image.fromarray(arr[_sl[1]:_sl[3],
+                                                    _sl[0]:_sl[2]]).save(
+                                    'clicker_slot_last.png')
+                            except Exception:
+                                pass
                     alive.append(tr)
                     continue
 
@@ -1940,6 +2032,7 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
     stable_cell, stable_count = None, 0
     last_nogo_log = 0.0
     last_slot_txt = ''
+    _last_slot_key = None
     bad_streak = 0
     last_seen_layout = time.time() if layout else 0.0
     last_click_pt = None        # aakhri click kahan hua (blind click ke liye)
@@ -2082,6 +2175,15 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
                 if _st and _st != last_slot_txt:
                     last_slot_txt = _st
                     log(f"{C.YELLOW}⏳ timer: {_st}{C.RESET} — 'GO' aate hi click")
+                _dbg = res.get('slot_debug') or {}
+                if _dbg:
+                    _key = (_dbg.get('blobs'), _dbg.get('size'),
+                            _dbg.get('holes'), _st)
+                    if _key != _last_slot_key:
+                        _last_slot_key = _key
+                        log(f"{C.YELLOW}   slot: blobs={_dbg.get('blobs')} "
+                            f"{_dbg.get('size')} holes={_dbg.get('holes')} "
+                            f"'{_st}'{C.RESET}")
 
                 waited = time.time() - wait_since
                 if (CONFIG['go_timeout'] > 0 and waited > CONFIG['go_timeout']
