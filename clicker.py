@@ -1296,7 +1296,8 @@ def slot_state(frame_rgb, slot, ocr_cache=None, detail=None, mode='ink'):
         win_w = x1 - x0
         comps = []
         for c in _ink_components(sub):
-            if c['h'] < max(6, 0.05 * slot_h) or c['h'] > 0.88 * slot_h:
+            # 0.55h se bada glyph = logo/banner ka letter, timer/GO nahi
+            if c['h'] < max(6, 0.05 * slot_h) or c['h'] > 0.55 * slot_h:
                 continue
             ar = c['w'] / max(1.0, float(c['h']))
             if ar > 6.0 or ar < 0.12:          # line jaisa (bahut lamba/patla)
@@ -1325,7 +1326,11 @@ def slot_state(frame_rgb, slot, ocr_cache=None, detail=None, mode='ink'):
     cluster = [comps[0]]
     for c in comps[1:]:
         prev = cluster[-1]
-        if c['x'] - (prev['x'] + prev['w']) <= gap:
+        # paas hona chahiye AUR size milta-julta ho (logo ka bada letter
+        # 'Go' ke saath nahi judna chahiye — warna 3 glyph = 'timer')
+        h_max = max(x['h'] for x in cluster)
+        same_scale = (min(h_max, c['h']) / max(1.0, float(max(h_max, c['h']))) >= 0.40)
+        if same_scale and c['x'] - (prev['x'] + prev['w']) <= gap:
             cluster.append(c)
         else:
             break
@@ -1400,10 +1405,12 @@ def go_state(frame_rgb, strip, detect_fn=None, allow_ocr=True, detail=None):
     if y1 - y0 < 10:
         return 'empty', ''
 
-    # 2 pass:
-    #   1) paas wala window (1.7h) -> KISI BHI color ka ink (GO kisi rang me ho)
-    #   2) thoda door (2.4h) -> sirf blue ink (logo/green image se bachne ke liye)
-    for _span, _mode in ((1.7, 'ink'), (2.4, 'blue')):
+    # 2 pass (dono 2.4h — chhota window "Go" ke 'o' ko kaat deta tha:
+    # 'G' akela digit jaisa lagta hai -> click hi nahi hota tha):
+    #   1) ink  -> kisi bhi color ka ink; sirf paas wala cluster ginta hai,
+    #              border lines filter (logo/banner door hota hai)
+    #   2) blue -> fallback, agar ink mask fail ho (rangeen background)
+    for _span, _mode in ((2.4, 'ink'), (2.4, 'blue')):
         x1 = min(W, strip[2] + int(_span * h))
         if x1 - x0 < 10:
             continue
