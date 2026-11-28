@@ -65,6 +65,10 @@ aur shapes **patli colored lines** (blue/green/red) se bante hain.
 - 🧱 **no_strip fallback** — lines halki/blur ho to page ke background color se strip
   aur cells nikale jate hain (aakhri rasta)
 - 🚫 **Ad banner safe** — page ke ads (jo CAPTCHA jaisa dikhte hain) cells me count nahi hote
+- 🪟 **Multi-window / multi-tab** — ek saath **5-6 CAPTCHA** chal rahe hon to sabko track karta
+  hai; **jis CAPTCHA ka apna "GO" aata hai, usi par usi waqt** click hota hai
+- 🎯 **Sabse pakka CAPTCHA chunta hai** — har candidate ko score milta hai (cells, clue aakhri
+  me, GO/timer slot, aspect). Ad/decoy (score kam) list me hi nahi aate
 - 🌐 **Browser background me bhi** — poori screen scan karta hai, window focus ki zaroorat nahi
 - 🖥️ **DPI-aware mode** — process ko per-monitor DPI-aware banata hai, isliye screenshot aur
   click dono **physical pixels** me hote hain → 125%/150% scaling par bhi click bilkul sahi jagah
@@ -91,6 +95,7 @@ python clicker.py --calibrate      # screenshot/click mapping check (kuch click 
 python clicker.py --no-wait-go     # 'Go' ka intezaar nahi, seedha click
 python clicker.py --go-timeout 3   # 3s me Go na mile to phir bhi click (default: sirf Go par)
 python clicker.py --wait 5         # extra safety: 5s tak click nahi (default 0 = off)
+python clicker.py --single         # sirf 1 CAPTCHA (multi-window off)
 python clicker.py --no-blind       # CAPTCHA na mile to bhi click mat karo
 python clicker.py --blind-after 2  # 2s tak detect na ho to seedha click
 python clicker.py --min-match 0.4  # match ka threshold (kam = zyada "match" maanega)
@@ -144,6 +149,7 @@ Dono usi folder me bante hain jahan `clicker.py` hai.
 | Click bahut late ho raha | `--go-timeout 0` (default) rakho — click sirf "GO" dikhne par hota hai |
 | **Timer ke andar hi click ho jata hai** | Fix ho gaya — countdown digit (9,8,7) ab timer maana jata hai, GO nahi. `--debug` se `debug/` image bhejo agar phir bhi ho |
 | **Log me `no_strip` aata hai** | Ab background-color fallback hai; phir bhi aaye to `--manual` se region select karo |
+| **Kisi doosri window par click ho raha** | Multi mode me har CAPTCHA apna `[#n]` tag dikhata hai — dekho kaunsa click ho raha hai. Sirf ek chahiye to `--single` |
 | **`🕳️ seedha click` bahut baar** | `--no-blind` lagao, ya `--manual` se region do (tab detection pakki ho jati hai) |
 | **Time khatam hone par click** | Fix: retry ab poore CAPTCHA ka fingerprint dekhta hai (pehle sirf shape) |
 | **`no_target` aata tha** | Fix ho gaya — clue shape na mile to bhi 3 me se random box click hota hai |
