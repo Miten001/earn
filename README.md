@@ -1,6 +1,7 @@
 # 🎯 Click & Find — CAPTCHA Letter Clicker
 
-"Click" ke niche jo letter dikhe (jaise `q`), use 3 boxes me find karke jab **"Go"** aaye to us letter par **auto-click** karta hai.
+Clue box (sabse aakhri) me jo shape hota hai, wahi shape **pehle 3 boxes** me dhoondh ke
+**"GO"** dikhne par usi waqt **auto-click** karta hai. Match na mile to 3 me se random box click hota hai.
 
 ## 📁 Files
 
@@ -8,23 +9,10 @@
 |---|---|
 | `clicker.bat` | **DOUBLE-CLICK KARO, BAS!** Python auto-install (winget), args passthrough, `launcher_log.txt` ⭐⭐⭐ |
 | `clicker.py` | **v2** — graph-paper cells + rotation-tolerant shape matching + DPI fix (`--debug`, `--dry-run`) ⭐⭐ |
-| `index.html` | Web GUI demo (browser me chalao — practice ke liye) |
-| `cli_solver.py` | CMD-only version (letter OCR wala purana) |
-| `captcha_solver.py` | GUI version (letter OCR wala purana) |
-| `requirements.txt` | Python packages (clicker.py ko iski zaroorat nahi — khud install kar leta hai) |
+| `requirements.txt` | Python packages ki list (clicker.py khud install kar leta hai — manual ke liye) |
 
----
-
-## 🌐 Web GUI (practice/demo)
-
-```bash
-python3 -m http.server 8000
-# browser me kholo: http://localhost:8000
-```
-
-- "Click" + target letter dikhta hai, 3 boxes me shapes hain
-- **Go** dabao → animated cursor letter find karke click karta hai
-- **New Round** / **Auto Find** buttons bhi hain
+> 🧹 Purane letter-OCR versions (`cli_solver.py`, `captcha_solver.py`) aur web demo
+> (`index.html`) hata diye gaye hain — ab sirf `clicker.py` + `clicker.bat` hi maintain hota hai.
 
 ---
 
@@ -131,7 +119,7 @@ Dono usi folder me bante hain jahan `clicker.py` hai.
 | **Galat jagah click ho raha** | `--calibrate` chalao (kuch click nahi karega, sirf mapping report). Purana `region.txt` delete karo — DPI mode badla hai |
 | **Click ho raha par CAPTCHA nahi ja raha** | Tool khud 3 baar retry karta hai (thoda alag point par). Phir bhi na ho to `--clicks 2` |
 | **Click nahi ho raha** | `--click-test` chalao (Notepad khol ke) — clicks kaam kar rahe hain ya nahi pata chalega. Phir `--no-wait-go` ya `--go-timeout 3` try karo |
-| **`no_strip` — boxes detect na hue** | `layout_cache.json` delete karke dobara chalao (agar page layout badla ho). Phir bhi na ho to `--manual` |
+| **`no_strip` — boxes detect na hue** | `layout_cache.json` delete karke dobara chalao (naya version purana cache khud ignore karta hai) (agar page layout badla ho). Phir bhi na ho to `--manual` |
 | **Window khulte hi band ho jati hai** | Naya `clicker.bat` use karo (CRLF + har path par pause). Ya CMD me: `cmd /k python clicker.py --debug` — window kabhi band nahi hogi |
 | Error ki detail chahiye | Usi folder me **`clicker_log.txt`** kholo — poori traceback, Python version, OS sab save hota hai |
 | Bilkul kuch nahi hota | `python clicker.py --debug --once` chalao → `debug/` folder me png aayegi. Wo bhejo, usse pata chalega kahan atka |
@@ -154,106 +142,3 @@ Screen scan → OCR ("Click" dhoondho) → borders se strip + cells nikalo
 ```
 
 ---
-
-## ⌨️ CMD-Only Version (`cli_solver.py`)
-
-Koi GUI window nahi — sirf CMD/terminal me chalta hai. Sab output terminal me print hota hai.
-
-### Setup (ek baar)
-
-```bash
-pip install -r requirements.txt
-# + Tesseract OCR install karo (upar wala link)
-```
-
-### Use
-
-```bash
-# Pehli baar — region select karega (mouse se, terminal me hi)
-python cli_solver.py
-```
-
-1. Mouse ko CAPTCHA ke **top-left corner** par le jao → **Enter** dabao (position live dikhegi)
-2. Mouse ko **bottom-right corner** par le jao → **Enter** dabao
-3. Region `region.txt` me **save** ho jayega — agle run me dobara select nahi karna padega
-4. Auto monitor ON ho jayega — "Go" aate hi click 🖱️, sab terminal me print hoga:
-   ```
-   [10:30:01] 🔤 Target letter: 'q'
-   [10:30:05] 🟢 'Go' dikha! Letter find karke click karta hoon...
-   [10:30:05] 🖱️  CLICK! Box 2 par (350, 280)
-   [10:30:05] ✅ Done — 'q' Box 2 par click ho gaya!
-   ```
-
-### Commands
-
-| Command | Kya karega |
-|---|---|
-| `python cli_solver.py` | Saved region use karke auto monitor start |
-| `python cli_solver.py --pick` | Naya region select karo (saved ignore karke) |
-| `python cli_solver.py --region 100,200,460,300` | Region seedha command line se do |
-| `python cli_solver.py --once` | Ek baar find & click karke exit |
-| `python cli_solver.py --interval 0.3` | Scan interval badlo (seconds) |
-| `python cli_solver.py --help` | Saare options dikhao |
-
-**Stop:** `Ctrl+C` dabao, ya mouse ko screen corner par le jao (emergency stop).
-
----
-
-## 🖥️ GUI Version (`captcha_solver.py`)
-
-Screen par asli CAPTCHA ke saath chalta hai — OCR se letter padhta hai aur mouse click karta hai.
-
-### Setup
-
-1. **Python packages:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. **Tesseract OCR install karo** (letter padhne ke liye zaroori hai):
-   - **Windows:** https://github.com/UB-Mannheim/tesseract/wiki — installer download karke install karo. Agar `C:\Program Files\Tesseract-OCR\tesseract.exe` par nahi hai to `captcha_solver.py` me `pytesseract.pytesseract.tesseract_cmd` set karo.
-   - **Mac:** `brew install tesseract`
-   - **Linux:** `sudo apt install tesseract-ocr`
-
-### Use
-
-```bash
-python captcha_solver.py
-```
-
-1. **Step 1** — "Screen par Drag karke Select karo" dabao → screen par CAPTCHA wali jagah par drag karke box banao
-2. **Step 2** — "▶ Start Auto" dabao → tool har 0.6 sec me screen scan karega:
-   - "Click" ke niche wala **target letter** OCR se padhega
-   - 3 boxes me wahi letter dhoondhega
-   - **"Go"** dikhte hi sahi box par **mouse click** kar dega
-3. **"🔍 Find & Click Now"** — ek baar manually find & click karega (Go ka intezaar nahi karega)
-
-### ⚠️ Safety
-
-- **Emergency stop:** mouse ko screen ke **corner** par le jao → turant ruk jayega (pyautogui FAILSAFE)
-- Pehli baar **"Find & Click Now"** se test karo, phir Auto mode use karo
-- Region sahi select karo — top me "Click + letter", beech me 3 boxes, niche "Go" hona chahiye
-
-### ⚙️ Tuning (agar letter galat padhe)
-
-`captcha_solver.py` ke top par `CONFIG` hai:
-- `top_frac` / `bottom_frac` — agar boxes/Go ka area galat cut ho raha hai to adjust karo
-- `ocr_scale` — badhao (3) agar chhota letter hai
-- `scan_interval` — scan kitni jaldi ho
-
----
-
-## 🔄 Kaam kaise karta hai
-
-**Naya (clicker.py v2 — graph-paper shape matching):**
-```
-Screen scan → OCR ("Click") → borders se strip + cells
-→ Click cell ka bold shape = TARGET
-→ har box ka bold shape → target ko 0-360° ghumake best IoU
-→ "Go" dikha? → CLICK 🖱️
-```
-
-**Purana (cli_solver.py / captcha_solver.py — letter OCR):**
-```
-Screen capture → OCR (target letter) → OCR (boxes) → match? → "Go" dikha? → CLICK 🖱️
-```
