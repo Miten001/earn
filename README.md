@@ -26,7 +26,7 @@ Double-click karne par ye file khud sab kar legi:
 3. 📦 Packages (pyautogui, pillow, pytesseract, opencv, numpy) **auto-install**
 4. 🔤 Tesseract OCR **auto-download + install** (Windows)
 5. 🔍 CAPTCHA khud dhoondhega (full screen scan — kuch select nahi karna)
-6. ⏳ **11 second wait** karega (timer khatam hone tak click nahi), phir **"GO"** dikhte hi click
+6. ⏳ Timer khud padhega (9 → 8 → 7 …), aur **"GO" likhte hi turant** click
 
 **Kuch bhi install/download karne ki zaroorat nahi — sirf double-click!**
 
@@ -53,11 +53,13 @@ aur shapes **patli colored lines** (blue/green/red) se bante hain.
 - 🔢 **3, 4, 5... boxes** — dividers se count hota hai; **aakhri (clue) box kabhi click nahi hota**
 - 🧩 **Clue box = sabse aakhri** — usme laal "Click" + ek shape hota hai; pehle 3 boxes me wahi
   shape dhoondh ke click hota hai. Shape **match na mile to 3 me se koi ek random** box click hota hai
-- ⏱️ **Timer ke dauraan sirf search** — CAPTCHA dikhne ke baad **11s tak click nahi**
-  (`--wait` se badlo), uske baad **sirf "GO" dikhne par** click
-- 🛡️ **False "GO" fix** — clue cell ke andar jo bada blue **"G"** hota hai, OCR use
-  "Go" padh leta tha aur click 1 second me ho jata tha. Ab us cell ka koi bhi "Go"
-  asli GO nahi maana jata
+- ⏱️ **Timer slot padhta hai** — jahan bada blue **"9"** (countdown) dikhta hai, wahi
+  jagah baad me **"GO"** ban jati hai. Tool digit aur "GO" me farq karta hai:
+  digit = ruk jao, **"GO" = turant click**. Apna koi 11s timer nahi lagaya jata
+- 🛡️ **False "GO" fix** — countdown ka blue digit, clue cell ka bada "G", ya ad ka
+  "Go" — inme se koi bhi ab GO nahi maana jata (sirf timer wali jagah dekhi jati hai)
+- 🧱 **no_strip fallback** — lines halki/blur ho to page ke background color se strip
+  aur cells nikale jate hain (aakhri rasta)
 - 🚫 **Ad banner safe** — page ke ads (jo CAPTCHA jaisa dikhte hain) cells me count nahi hote
 - 🌐 **Browser background me bhi** — poori screen scan karta hai, window focus ki zaroorat nahi
 - 🖥️ **DPI-aware mode** — process ko per-monitor DPI-aware banata hai, isliye screenshot aur
@@ -84,8 +86,7 @@ python clicker.py --click-test     # clicks kaam karte hain? (safe test)
 python clicker.py --calibrate      # screenshot/click mapping check (kuch click nahi)
 python clicker.py --no-wait-go     # 'Go' ka intezaar nahi, seedha click
 python clicker.py --go-timeout 3   # 3s me Go na mile to phir bhi click (default: sirf Go par)
-python clicker.py --wait 11        # CAPTCHA dikhne ke baad 11s tak click nahi (default)
-python clicker.py --wait 0         # wait off — jaise hi Go dikhe click
+python clicker.py --wait 5         # extra safety: 5s tak click nahi (default 0 = off)
 python clicker.py --min-match 0.4  # match ka threshold (kam = zyada "match" maanega)
 python clicker.py --clicks 2       # double-click kare
 ```
@@ -134,8 +135,9 @@ Dono usi folder me bante hain jahan `clicker.py` hai.
 | Log me `[RANDOM — clue ka match nahi mila]` | Clue jaisa shape kisi box me nahi mila, isliye 3 me se random box clicka (design ke hisaab se normal) |
 | Clue box (aakhri) click ho raha | Aisa nahi hona chahiye — `debug/` image bhejo, cells ka partition galat detect hua hai |
 | Click bahut late ho raha | `--go-timeout 0` (default) rakho — click sirf "GO" dikhne par hota hai |
-| **Timer ke andar hi click ho jata hai** | `--wait 11` default hai; `--wait 0` mat do. Site ka timer lamba ho to `--wait 15` karo |
-| Click 1 second me ho jata tha (GO se pehle) | Fix ho gaya — clue cell ka bada blue `G` pehle "Go" samajh liya jata tha |
+| **Timer ke andar hi click ho jata hai** | Fix ho gaya — countdown digit (9,8,7) ab timer maana jata hai, GO nahi. `--debug` se `debug/` image bhejo agar phir bhi ho |
+| **Log me `no_strip` aata hai** | Ab background-color fallback hai; phir bhi aaye to `--manual` se region select karo |
+| **`no_target` aata tha** | Fix ho gaya — clue shape na mile to bhi 3 me se random box click hota hai |
 | Click galat jagah | display scaling ho sakti hai — tool auto-detect karta hai, log me "Display scaling detect hui" dikhega |
 | "Go" na pehchane | "Go" button ka screenshot bhejo — blue-blob fallback tune karenge |
 
