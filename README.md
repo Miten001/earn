@@ -38,7 +38,7 @@ Double-click karne par ye file khud sab kar legi:
 3. 📦 Packages (pyautogui, pillow, pytesseract, opencv, numpy) **auto-install**
 4. 🔤 Tesseract OCR **auto-download + install** (Windows)
 5. 🔍 CAPTCHA khud dhoondhega (full screen scan — kuch select nahi karna)
-6. ✅ "Go" dikhte hi sahi box par click!
+6. ⏳ Timer ke dauraan shape dhoondhta rahega, **"GO" dikhte hi turant** sahi box par click
 
 **Kuch bhi install/download karne ki zaroorat nahi — sirf double-click!**
 
@@ -60,8 +60,13 @@ aur shapes **patli colored lines** (blue/green/red) se bante hain.
   wahi chunta hai jiske paas **asli strip + "Go"** hai — `--manual` ki zaroorat nahi
 - ⚡ **Fast** — ek baar locate, phir ~15 ms/frame (Go blue-blob se, OCR nahi);
   `layout_cache.json` se agli baar **instant start**
+- 🎯 **Turant click** — "GO" pehli baar dikha, usi frame me click (koi 2-frame wait nahi)
 - 🧭 **Layout auto-detect** — "Click" cell, boxes aur "Go" khud pehchanta hai
-- 🔢 **3, 4, 5... boxes** — dividers se count hota hai
+- 🔢 **3, 4, 5... boxes** — dividers se count hota hai; **aakhri (clue) box kabhi click nahi hota**
+- 🧩 **Clue box = sabse aakhri** — usme laal "Click" + ek shape hota hai; pehle 3 boxes me wahi
+  shape dhoondh ke click hota hai. Shape **match na mile to 3 me se koi ek random** box click hota hai
+- ⏱️ **Timer ke dauraan sirf search** — click **sirf "GO" dikhne par** hota hai
+- 🚫 **Ad banner safe** — page ke ads (jo CAPTCHA jaisa dikhte hain) cells me count nahi hote
 - 🌐 **Browser background me bhi** — poori screen scan karta hai, window focus ki zaroorat nahi
 - 🖥️ **DPI-aware mode** — process ko per-monitor DPI-aware banata hai, isliye screenshot aur
   click dono **physical pixels** me hote hain → 125%/150% scaling par bhi click bilkul sahi jagah
@@ -72,7 +77,8 @@ aur shapes **patli colored lines** (blue/green/red) se bante hain.
 **Option A — Double-click karo:**
 1. `clicker.py` (ya `clicker.bat`) par **double-click**
 2. Tool screen scan karke CAPTCHA khud dhoondhega — kuch select nahi karna
-3. ✅ "Go" dikhte hi sahi box par click. Stop: `Ctrl+C` ya mouse screen corner par
+3. ⏳ Timer chalta hai — tool tab tak sirf shape dhoondhta hai (click nahi)
+4. 🟢 **"GO"** dikhte hi usi waqt click. Stop: `Ctrl+C` ya mouse screen corner par
 
 **Option B — CMD se:**
 ```bash
@@ -85,7 +91,8 @@ python clicker.py --region 100,200,700,130
 python clicker.py --click-test     # clicks kaam karte hain? (safe test)
 python clicker.py --calibrate      # screenshot/click mapping check (kuch click nahi)
 python clicker.py --no-wait-go     # 'Go' ka intezaar nahi, seedha click
-python clicker.py --go-timeout 3   # 3s me Go na mile to phir bhi click
+python clicker.py --go-timeout 3   # 3s me Go na mile to phir bhi click (default: sirf Go par)
+python clicker.py --min-match 0.4  # match ka threshold (kam = zyada "match" maanega)
 python clicker.py --clicks 2       # double-click kare
 ```
 
@@ -130,15 +137,20 @@ Dono usi folder me bante hain jahan `clicker.py` hai.
 | Bilkul kuch nahi hota | `python clicker.py --debug --once` chalao → `debug/` folder me png aayegi. Wo bhejo, usse pata chalega kahan atka |
 | "no_strip" / boxes na mile | `--manual` lagao aur poora CAPTCHA strip select karo |
 | Galat box click ho raha | `--dry-run` se check karo, phir `debug/` wali image bhejo (scores usme dikhte hain) |
+| Log me `[RANDOM — clue ka match nahi mila]` | Clue jaisa shape kisi box me nahi mila, isliye 3 me se random box clicka (design ke hisaab se normal) |
+| Clue box (aakhri) click ho raha | Aisa nahi hona chahiye — `debug/` image bhejo, cells ka partition galat detect hua hai |
+| Click bahut late ho raha | `--go-timeout 0` (default) rakho — click sirf "GO" dikhne par, usi frame me hota hai |
 | Click galat jagah | display scaling ho sakti hai — tool auto-detect karta hai, log me "Display scaling detect hui" dikhega |
 | "Go" na pehchane | "Go" button ka screenshot bhejo — blue-blob fallback tune karenge |
 
 ### Kaise kaam karta hai
 ```
-Screen scan → OCR ("Click" dhoondho) → patli borders se strip + cells nikalo
-→ Click wale cell me se bold shape = TARGET
-→ har box ka bold shape nikalo → target ko 0-360° ghumake best IoU
-→ sabse zyada score wala box → "Go" dikha? → CLICK 🖱️
+Screen scan → OCR ("Click" dhoondho) → borders se strip + cells nikalo
+→ CLUE cell (sabse aakhri, jisme laal "Click" + shape) ka bold shape = TARGET
+→ pehle 3 boxes ka bold shape → target ko 0-360° ghumake best IoU
+→ clear winner? → wahi box  |  match dhundhla/koi nahi? → 3 me se RANDOM box
+→ timer ke dauraan sirf search … "GO" dikha? → USI FRAME me CLICK 🖱️
+→ clue cell (aakhri) kabhi click nahi hota
 ```
 
 ---

@@ -3,8 +3,15 @@
 """
 🎯 Surf-Bash CAPTCHA Clicker — v2 (graph-paper + shape matching)
 ================================================================
-"Click" ke niche jo shape hai, wahi shape boxes me dhoondho, aur "Go"
-dikhte hi us box par click kar do.
+Naya CAPTCHA = 4 cells:
+   cell 1..3  -> graph-paper boxes (yahin click karna hai)
+   cell 4     -> CLUE cell: laal "Click" + target shape  (KABHI click nahi)
+
+Kaam:
+   1. clue cell se shape nikalo
+   2. cell 1..3 me wahi shape (rotate hua ho sakta hai) dhoondho
+   3. clear match -> wahi box  |  match nahi mila -> 3 me se RANDOM box
+   4. timer ke dauraan sirf search; "GO" dikhte hi USI FRAME me click
 
 Ye version asli Surf Bash CAPTCHA ke liye bana hai jisme:
   - boxes graph-paper (squared) hote hain
@@ -24,6 +31,9 @@ OPTIONS:
    --manual          region khud select karo (auto-detect fail ho to)
    --region x,y,w,h  region CMD se do
    --interval 0.4    scan gap (seconds)
+   --min-match 0.4   isse kam score = "match nahi mila" -> random box
+   --go-timeout 3    'Go' na mile to bhi 3s baad click (default 0 = sirf Go par)
+   --clicks 2        double-click
    --no-pause        band hone par Enter na puche
 
 STOP: Ctrl+C  ya  mouse screen corner par (emergency stop)
@@ -36,6 +46,7 @@ import shutil
 import subprocess
 import sys
 import platform
+import random
 import tempfile
 import threading
 import time
@@ -49,8 +60,10 @@ CONFIG = {
     "scan_interval": 0.3,
     "click_delay": 0.25,
     "min_confidence": 0.22,     # isse kam = "pata nahi" (log me warning)
+    "min_match": 0.32,          # best score isse kam -> koi box match nahi hua
+    "min_margin": 0.04,         # best - 2nd best isse kam -> ambiguous -> random
     "clicks": 1,                # ek cell par kitne clicks
-    "go_timeout": 8.0,          # itne second 'Go' na mile to phir bhi click
+    "go_timeout": 0.0,          # 0 = sirf 'Go' dikhne par click (timer ke baad)
     "debug": False,
 }
 
@@ -443,9 +456,11 @@ def _strip_with_threshold(gray, click_w, thr):
         return [], None
 
     lo, hi = pair, pair + 1
-    while lo - 1 >= 0 and 0.55 * cell_w <= dividers[lo] - dividers[lo - 1] <= 1.75 * cell_w:
+    # CAPTCHA ki cells lagbhag barabar hoti hain — bahar ki cheezein (ads)
+    # is ratio ke bahar nikal jati hain, isliye chain wahin ruk jati hai
+    while lo - 1 >= 0 and 0.72 * cell_w <= dividers[lo] - dividers[lo - 1] <= 1.35 * cell_w:
         lo -= 1
-    while hi + 1 < len(dividers) and 0.55 * cell_w <= dividers[hi + 1] - dividers[hi] <= 1.75 * cell_w:
+    while hi + 1 < len(dividers) and 0.72 * cell_w <= dividers[hi + 1] - dividers[hi] <= 1.35 * cell_w:
         hi += 1
 
     cells = [(dividers[k] + 2, top + 3, dividers[k + 1] - 2, bottom - 2)
@@ -785,7 +800,12 @@ def analyse(frame_rgb, region=None, words=None, go_required=True,
             go_here = False
 
     best_local = int(np.argmax(scores))
+    ordered = sorted(range(len(scores)), key=lambda i: -scores[i])
+    second_score = scores[ordered[1]] if len(ordered) > 1 else 0.0
+    margin = scores[ordered[0]] - second_score
+    strong = (scores[ordered[0]] >= CONFIG['min_match'] and margin >= CONFIG['min_margin'])
     return {
+        'margin': margin, 'strong_match': strong,
         'status': 'ok' if (go_here or not go_required) else 'wait_go',
         'cells': cells, 'strip': strip, 'target_idx': target_idx,
         'box_idx': box_idx, 'box_rel': [i - target_idx for i in box_idx],
@@ -859,6 +879,24 @@ def save_debug(frame_rgb, res, tag=''):
             cv2.imwrite(fname2, big)
             return fname + ' + ' + fname2
     return fname
+
+
+def choose_box(res):
+    """
+    Kaunsa box click karna hai:
+      - clue ka strong match mila -> wahi box
+      - match dhundhla/koi nahi -> 3 boxes me se RANDOM ek
+    Return: (cell_index, reason, score)
+    """
+    scores = res.get('scores') or []
+    boxes = res.get('box_idx') or []
+    if not boxes:
+        return None, 'no_boxes', 0.0
+    best_local = int(np.argmax(scores)) if scores else 0
+    best_score = scores[best_local] if scores else 0.0
+    if res.get('strong_match'):
+        return boxes[best_local], 'match', best_score
+    return random.choice(boxes), 'random', best_score
 
 
 def print_scores(res):
@@ -1143,10 +1181,17 @@ def solve_now(screen, region, once=True, dry_run=False, debug=False):
     if st == 'wait_go':
         log(f"{C.YELLOW}⏳ 'Go' ka intezaar...{C.RESET}")
         return False
+    pick_idx, reason, best_score = choose_box(res)
+    if pick_idx is None or pick_idx == res.get('target_idx'):
+        log(f"{C.RED}❌ koi box choose nahi hua{C.RESET}")
+        return False
+    box_no = res['box_idx'].index(pick_idx) + 1
+    tag = 'match' if reason == 'match' else 'RANDOM — clue match nahi mila'
     if dry_run:
-        log(f"{C.CYAN}🧪 dry-run: Box{res['best_local']+1} par click karta, par nahi kiya{C.RESET}")
+        log(f"{C.CYAN}🧪 dry-run: Box{box_no} [{tag}] ({best_score:.2f}) — click nahi kiya{C.RESET}")
         return True
-    click_cell(screen, res['best_cell'], region)
+    log(f"→ Box{box_no} [{tag}] (score {best_score:.2f})")
+    click_cell(screen, res['cells'][pick_idx], region, CONFIG['clicks'])
     return True
 
 
@@ -1261,25 +1306,33 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
 
             if res['status'] == 'wait_go':
                 if last_state != 'wait_go':
-                    log(f"{C.YELLOW}⏳ 'Go' ka intezaar... "
-                        f"({CONFIG['go_timeout']:.0f}s baad phir bhi click){C.RESET}")
+                    if CONFIG['go_timeout'] > 0:
+                        hint = f"({CONFIG['go_timeout']:.0f}s baad phir bhi click)"
+                    else:
+                        hint = "(sirf 'Go' dikhne par click hoga)"
+                    log(f"{C.YELLOW}⏳ Timer chal raha hai — 'Go' ka intezaar {hint}{C.RESET}")
                     last_state = 'wait_go'
                     wait_since = time.time()
 
                 waited = time.time() - wait_since
-                if waited > CONFIG['go_timeout'] and (time.time() - last_click) > 2.5:
+                if (CONFIG['go_timeout'] > 0 and waited > CONFIG['go_timeout']
+                        and (time.time() - last_click) > 2.5):
+                    _pi, _rs, _sc = choose_box(res)
+                    if _pi is None:
+                        time.sleep(CONFIG['scan_interval'])
+                        continue
                     if (time.time() - last_nogo_log) > 5.0:
                         log(f"{C.YELLOW}⚠️  'Go' nahi mila ({waited:.0f}s) — "
-                            f"phir bhi Box{res['best_local']+1} par click{C.RESET}")
+                            f"phir bhi Box{res['box_idx'].index(_pi)+1} par click{C.RESET}")
                         last_nogo_log = time.time()
                     if debug:
                         log('   debug: ' + str(save_debug(frame, res, 'nogo')))
                     if dry_run:
                         log(f"{C.CYAN}🧪 dry-run: click roka gaya{C.RESET}")
                     else:
-                        click_cell(screen, res['best_cell'], region, CONFIG['clicks'])
+                        click_cell(screen, res['cells'][_pi], region, CONFIG['clicks'])
                         pending_sig = res.get('target_sig')
-                        pending_local = res['best_local']
+                        pending_local = _pi
                         click_attempts = 1
                         time.sleep(1.2)
                     last_click = time.time()
@@ -1290,14 +1343,14 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
 
             # ---- click register hua? (wahi CAPTCHA dikh raha hai to retry) ----
             if pending_sig is not None and res.get('target_sig') is not None:
-                same = (iou(pending_sig, res['target_sig']) > 0.85
-                        and res['best_local'] == pending_local)
+                same = iou(pending_sig, res['target_sig']) > 0.85
                 if same:
                     if click_attempts < 3 and (time.time() - last_click) > 2.0:
                         log(f"{C.YELLOW}⚠️  Click register nahi hua — dobara try "
                             f"({click_attempts}/3){C.RESET}")
-                        if not dry_run:
-                            click_cell(screen, res['best_cell'], region,
+                        _pi, _rs, _sc = choose_box(res)
+                        if not dry_run and _pi is not None:
+                            click_cell(screen, res['cells'][_pi], region,
                                        CONFIG['clicks'], jitter=click_attempts * 7)
                         click_attempts += 1
                         last_click = time.time()
@@ -1310,24 +1363,27 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
                 else:
                     pending_sig, click_attempts = None, 0
 
-            # ---- 'Go' mila: 2 frame stable par click ----
-            if res['best_local'] == stable_cell:
-                stable_count += 1
-            else:
-                stable_cell, stable_count = res['best_local'], 1
+            # ---- 'Go' dikha (timer khatam): TURANT click ----
+            pick_idx, reason, best_score = choose_box(res)
+            if pick_idx is None or pick_idx == res.get('target_idx'):
+                time.sleep(CONFIG['scan_interval'])
+                continue
 
-            if stable_count >= 2 and (time.time() - last_click) > 2.5:
-                log(f"{C.GREEN}🟢 'Go' mila → Box{res['best_local']+1} "
-                    f"(score {res['best_score']:.2f}){C.RESET}")
+            if (time.time() - last_click) > 2.5:
+                box_no = res['box_idx'].index(pick_idx) + 1
+                tag = ('match' if reason == 'match'
+                       else 'RANDOM — clue ka match nahi mila')
+                log(f"{C.GREEN}🟢 'Go' mila → Box{box_no} [{tag}] "
+                    f"score {best_score:.2f}{C.RESET}")
                 if debug:
                     log('   debug: ' + str(save_debug(frame, res, 'click')))
                 if dry_run:
                     log(f"{C.CYAN}🧪 dry-run: click roka gaya{C.RESET}")
                 else:
-                    click_cell(screen, res['best_cell'], region, CONFIG['clicks'])
+                    click_cell(screen, res['cells'][pick_idx], region, CONFIG['clicks'])
                 last_click = time.time()
                 pending_sig = res.get('target_sig')
-                pending_local = res['best_local']
+                pending_local = pick_idx
                 click_attempts = 1
                 # layout rakho: agla CAPTCHA wahi jagah hota hai -> fast
                 time.sleep(1.5)
@@ -1401,7 +1457,9 @@ def main():
     ap.add_argument('--no-wait-go', action='store_true',
                     help="'Go' ka intezaar mat karo — boxes milte hi click")
     ap.add_argument('--go-timeout', type=float, default=CONFIG['go_timeout'],
-                    help="itne second 'Go' na mile to phir bhi click (default 8)")
+                    help="itne second 'Go' na mile to phir bhi click (default 0 = sirf 'Go' par click)")
+    ap.add_argument('--min-match', type=float, default=CONFIG['min_match'],
+                    help='itne score se kam = clue match nahi (random click)')
     ap.add_argument('--clicks', type=int, default=1,
                     help='ek box par kitne clicks (1-3, default 1)')
     ap.add_argument('--calibrate', action='store_true',
@@ -1415,6 +1473,7 @@ def main():
     CONFIG['scan_interval'] = args.interval
     CONFIG['debug'] = args.debug
     CONFIG['clicks'] = max(1, min(3, args.clicks))
+    CONFIG['min_match'] = args.min_match
     CONFIG['go_timeout'] = max(0.0, args.go_timeout)
 
     if args.selftest:
