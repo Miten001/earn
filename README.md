@@ -70,6 +70,9 @@ aur shapes **patli colored lines** (blue/green/red) se bante hain.
   hai (har CAPTCHA par sirf ek click). 10 CAPTCHA par bhi frame ~50 ms rehta hai
 - 🎯 **Sabse pakka CAPTCHA chunta hai** — har candidate ko score milta hai (cells, clue aakhri
   me, GO/timer slot, aspect). Ad/decoy (score kam) list me hi nahi aate
+- 🔤 **OCR fail ho to bhi chalta hai** — agar Tesseract laal "Click" label nahi padh pata,
+  to wahi label **geometry se** dhoondh liya jata hai (laal chhote text ka grouping). Matlab
+  "captcha detect hi nahi ho raha" wali problem khatam
 - 🌐 **Browser background me bhi** — poori screen scan karta hai, window focus ki zaroorat nahi
 - 🖥️ **DPI-aware mode** — process ko per-monitor DPI-aware banata hai, isliye screenshot aur
   click dono **physical pixels** me hote hain → 125%/150% scaling par bhi click bilkul sahi jagah
@@ -140,6 +143,8 @@ Dono usi folder me bante hain jahan `clicker.py` hai.
 | **Galat jagah click ho raha** | `--calibrate` chalao (kuch click nahi karega, sirf mapping report). Purana `region.txt` delete karo — DPI mode badla hai |
 | **Click ho raha par CAPTCHA nahi ja raha** | Tool khud 3 baar retry karta hai (thoda alag point par). Phir bhi na ho to `--clicks 2` |
 | **Click nahi ho raha** | `--click-test` chalao (Notepad khol ke) — clicks kaam kar rahe hain ya nahi pata chalega. Phir `--no-wait-go` ya `--go-timeout 3` try karo |
+| **CAPTCHA detect hi nahi ho raha** | Naya version lo — "Click" label OCR se na mile to laal-text geometry se milta hai. Log me `🔎 CAPTCHA nahi mila — OCR ne N words dekhe...` aaye to uske saath bani **`clicker_dump_fail.png`** bhejo (usme dikhta hai tool ne kya dekha) |
+| **GO aane par click nahi ho raha** | Log me `GO` line aani chahiye. Aaye par click na ho to `--click-test` chalao — Windows scaling/DPI ka issue ho sakta hai. `--dry-run` se sirf detection test karo |
 | **`no_strip` — boxes detect na hue** | `layout_cache.json` delete karke dobara chalao (naya version purana cache khud ignore karta hai) (agar page layout badla ho). Phir bhi na ho to `--manual` |
 | **Window khulte hi band ho jati hai** | Naya `clicker.bat` use karo (CRLF + har path par pause). Ya CMD me: `cmd /k python clicker.py --debug` — window kabhi band nahi hogi |
 | Error ki detail chahiye | Usi folder me **`clicker_log.txt`** kholo — poori traceback, Python version, OS sab save hota hai |
@@ -158,6 +163,11 @@ Dono usi folder me bante hain jahan `clicker.py` hai.
 | **`no_target` aata tha** | Fix ho gaya — clue shape na mile to bhi 3 me se random box click hota hai |
 | Click galat jagah | display scaling ho sakti hai — tool auto-detect karta hai, log me "Display scaling detect hui" dikhega |
 | "Go" na pehchane | "Go" button ka screenshot bhejo — blue-blob fallback tune karenge |
+
+### Debug file (agar phir bhi na chale)
+Kuch detect na ho to tool khud ek annotated screenshot bachata hai: **`clicker_dump_fail.png`**
+(har `Click`/laal label par box, jo CAPTCHA mila uspar laal box). Use `clicker_log.txt` ke saath
+bhej do — usme se exact pata chal jata hai kya miss hua.
 
 ### Kaise kaam karta hai
 ```
