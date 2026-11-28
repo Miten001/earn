@@ -60,6 +60,8 @@ CONFIG = {
     "scan_interval": 0.3,
     "click_delay": 0.25,
     "min_confidence": 0.22,     # isse kam = "pata nahi" (log me warning)
+    "min_wait": 11.0,           # CAPTCHA dikhne ke baad itne second tak click nahi
+                                # (timer chal raha hota hai; --wait 0 = off)
     "min_match": 0.32,          # best score isse kam -> koi box match nahi hua
     "min_margin": 0.04,         # best - 2nd best isse kam -> ambiguous -> random
     "clicks": 1,                # ek cell par kitne clicks
@@ -755,6 +757,11 @@ def analyse(frame_rgb, region=None, words=None, go_required=True,
         return {'status': 'no_strip', 'click': click_w, 'go': go_w, 'words': words,
                 'cells': cells}
 
+    # clue (Click) cell ke andar koi bhi 'Go' word asli GO nahi hota — wahan target
+    # shape hota hai (bada blue "G"), OCR use 'Go' padh sakta hai -> 1s me click ho jata tha
+    if go_w is not None and cell_has_word(cells[target_idx], go_w):
+        go_w = None
+
     if box_rel is not None:
         # cached layout: kaun se cells answer-boxes hain (Go cell exclude rahega)
         box_idx = [target_idx + r for r in box_rel if 0 <= target_idx + r < len(cells)]
@@ -1260,6 +1267,8 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
     stable_cell, stable_count = None, 0
     last_nogo_log = 0.0
     bad_streak = 0
+    seen_sig = None         # is CAPTCHA ka target shape (wait timer reset ke liye)
+    strip_since = 0.0       # CAPTCHA pehli baar kab dikha
     pending_sig = None      # click ke baad target shape (verify ke liye)
     pending_local = -1
     click_attempts = 0
@@ -1272,6 +1281,7 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
                 # ---- AUTO-DETECT: saare 'Click' candidates me se asli CAPTCHA ----
                 res = analyse(frame, region=region, go_required=go_required, check_go=True)
                 if res['status'] in BAD_STATES:
+                    seen_sig, strip_since = None, 0.0
                     bad_streak += 1
                     if last_state != res['status']:
                         reason = (f" [{STRIP_FAIL}]"
@@ -1301,6 +1311,7 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
                 res = analyse(frame, region=region, click_word=layout['click'],
                               check_go=True, go_required=go_required)
                 if res['status'] in BAD_STATES:
+                    seen_sig, strip_since = None, 0.0
                     bad_streak += 1
                     if bad_streak >= 3:
                         log(f"{C.CYAN}🔄 Layout nahi mila — dobara auto-detect{C.RESET}")
@@ -1368,6 +1379,27 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
                         pending_sig, click_attempts = None, 0
                 else:
                     pending_sig, click_attempts = None, 0
+
+            # ---- naya CAPTCHA? -> 11s wait timer reset ----
+            csig = res.get('target_sig')
+            # 0.5 threshold: shape me halka noise aaye to wait reset na ho (warna
+            # har frame reset hota rahega aur click kabhi nahi hoga)
+            if csig is None or seen_sig is None or iou(seen_sig, csig) < 0.5:
+                seen_sig = csig
+                strip_since = time.time()
+
+            # ---- timer ke dauraan click nahi (GO jaldi/ galat dikh jaye to bhi) ----
+            if CONFIG['min_wait'] > 0:
+                left = CONFIG['min_wait'] - (time.time() - strip_since)
+                if left > 0.05:
+                    if last_state != 'pre_wait':
+                        log(f"{C.YELLOW}⏳ {CONFIG['min_wait']:.0f}s ka wait — abhi "
+                            f"{left:.1f}s baaki (timer chal raha hai, click nahi){C.RESET}")
+                        last_state = 'pre_wait'
+                    time.sleep(min(CONFIG['scan_interval'], max(0.05, left)))
+                    continue
+                if last_state == 'pre_wait':
+                    last_state = ''
 
             # ---- 'Go' dikha (timer khatam): TURANT click ----
             pick_idx, reason, best_score = choose_box(res)
@@ -1464,6 +1496,8 @@ def main():
                     help="'Go' ka intezaar mat karo — boxes milte hi click")
     ap.add_argument('--go-timeout', type=float, default=CONFIG['go_timeout'],
                     help="itne second 'Go' na mile to phir bhi click (default 0 = sirf 'Go' par click)")
+    ap.add_argument('--wait', type=float, default=CONFIG['min_wait'],
+                    help='CAPTCHA dikhne ke baad itne second click nahi (default 11, 0 = off)')
     ap.add_argument('--min-match', type=float, default=CONFIG['min_match'],
                     help='itne score se kam = clue match nahi (random click)')
     ap.add_argument('--clicks', type=int, default=1,
@@ -1480,6 +1514,7 @@ def main():
     CONFIG['debug'] = args.debug
     CONFIG['clicks'] = max(1, min(3, args.clicks))
     CONFIG['min_match'] = args.min_match
+    CONFIG['min_wait'] = max(0.0, args.wait)
     CONFIG['go_timeout'] = max(0.0, args.go_timeout)
 
     if args.selftest:
