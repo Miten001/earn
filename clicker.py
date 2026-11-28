@@ -59,7 +59,7 @@ if os.name == 'nt':
 
 CONFIG = {
     "scan_interval": 0.3,
-    "click_delay": 0.25,
+    "click_delay": 0.12,
     "min_confidence": 0.22,     # isse kam = "pata nahi" (log me warning)
     "min_wait": 0.0,            # 0 = apna koi timer nahi — "GO" dikhne par click
                                 # (site ka countdown slot_state() se padha jata hai)
@@ -561,7 +561,7 @@ def _fallback_cells(gray, click_w, thr):
     return [], None
 
 
-def detect_strip(gray, click_w):
+def detect_strip(gray, click_w, arr=None):
     """
     'Click' word ke aas-paas CAPTCHA strip dhoondho.
     Adaptive: kai thresholds + Otsu try hote hain (light/antialiased borders
@@ -608,6 +608,13 @@ def detect_strip(gray, click_w):
         cells, strip = _fallback_cells(gray, click_w, thr)
         if cells:
             STRIP_FAIL = f'fallback (thr={thr})'
+            return cells, strip
+
+    # last resort 2: page ke background color se strip + barabar cells
+    if arr is not None:
+        cells, strip = _strip_by_bg(arr, click_w)
+        if cells:
+            STRIP_FAIL = 'bg-color fallback'
             return cells, strip
 
     STRIP_FAIL = 'lines/dividers nahi mile (thr try kiye: ' + ','.join(map(str, levels[:4])) + ')'
@@ -669,7 +676,7 @@ def _strip_by_bg(arr, click_w):
     return cells, strip
 
 
-def find_captcha_layout(gray, words):
+def find_captcha_layout(gray, words, arr=None):
     """
     Page par kai 'Click' ho sakte hain (ads me bhi). Har candidate ke liye
     strip dhoondhne ki koshish karo — jo asli CAPTCHA hai wahi lines dega.
@@ -701,7 +708,7 @@ def find_captcha_layout(gray, words):
 
     best = None
     for _, _, _, c in scored:
-        cells, strip = detect_strip(gray, c)
+        cells, strip = detect_strip(gray, c, arr=arr)
         if not cells:
             continue
         has_go = any(cell_has_word(cc, g) for cc in cells for g in gos)
@@ -829,7 +836,7 @@ def analyse(frame_rgb, region=None, words=None, go_required=True,
             words = locate_words(Image.fromarray(arr))
         go_w = find_word_exact(words, 'go', min_conf_h=10)
         # saare 'click' candidates me se wahi lo jo asli strip deta hai
-        click_w, pre_cells, pre_strip, n_cand = find_captcha_layout(gray, words)
+        click_w, pre_cells, pre_strip, n_cand = find_captcha_layout(gray, words, arr=arr)
         if click_w is None:
             return {'status': 'no_click' if n_cand == 0 else 'no_strip',
                     'words': words, 'n_candidates': n_cand}
@@ -839,12 +846,7 @@ def analyse(frame_rgb, region=None, words=None, go_required=True,
     if pre_cells:
         cells, strip = pre_cells, pre_strip
     else:
-        cells, strip = detect_strip(gray, click_w)
-        if not cells:
-            # lines halki/blur -> background color se strip + barabar cells
-            cells, strip = _strip_by_bg(arr, click_w)
-            if cells:
-                STRIP_FAIL = 'bg-color fallback'
+        cells, strip = detect_strip(gray, click_w, arr=arr)
     if not cells:
         return {'status': 'no_strip', 'click': click_w, 'go': go_w, 'words': words}
 
@@ -1060,6 +1062,38 @@ def _holes(mask):
     return h
 
 
+def _slot_verdict(comps):
+    """
+    Fast geometry verdict: 'go' / 'timer' / None (confuse -> OCR).
+    """
+    if not comps:
+        return 'empty'
+    if len(comps) == 1:
+        c = comps[0]
+        ratio = c['w'] / max(1.0, c['h'])
+        if ratio > 1.35:
+            return 'go'            # 'GO' ek saath juda hua (chauda)
+        if ratio < 1.10:
+            return 'timer'         # akela digit (9/8/7)
+        return None                # beech ka case -> OCR
+    if len(comps) == 2:
+        a, b = comps
+        w_ratio = min(a['w'], b['w']) / max(1.0, max(a['w'], b['w']))
+        h_ratio = min(a['h'], b['h']) / max(1.0, max(a['h'], b['h']))
+        holes = _holes(a.get('mask')) + _holes(b.get('mask'))
+        # 2 digits (10/11/12): lagbhag barabar, ya dono bhare hue
+        if w_ratio < 0.5:
+            return 'timer'
+        if holes == 0:
+            return 'timer'         # '11' / '17' — dono me hole nahi
+        if h_ratio >= 0.88:
+            return None            # barabar height + hole = '18' ya "GO" -> OCR
+        if h_ratio >= 0.55:
+            return 'go'            # 'G' + chhoti 'o' (asli GO aisa hi hota hai)
+        return None                # confuse -> OCR
+    return 'timer'                 # 3+ glyphs = digits/numbers
+
+
 def _slot_is_go(comps):
     """
     Geometry se: timer (9/8/10/11...) hai ya "GO"?
@@ -1083,12 +1117,14 @@ def _slot_is_go(comps):
 
 def slot_state(frame_rgb, slot, ocr_cache=None):
     """
-    Timer/GO wali jagah (strip ke right) ka haal:
+    Timer/GO wali jagah ka haal:
       'empty'  — kuch nahi
       'timer'  — countdown digit chal raha hai (CLICK NAHI)
       'go'     — "GO" dikh gaya (CLICK)
     Return: (state, text)
-    OCR sirf tab chalta hai jab slot ka content badle (digit badla / GO aaya).
+
+    ⚡ GEOMETRY PEHLE (blob, ~2ms) — OCR sirf tab jab geometry confuse ho.
+    (Pehle OCR pehle chalta tha -> har frame ~1s lagta tha, GO late pakda jata tha.)
     """
     arr = np.array(frame_rgb)
     H, W = arr.shape[:2]
@@ -1101,38 +1137,47 @@ def slot_state(frame_rgb, slot, ocr_cache=None):
     comps = _blue_components(sub)
     if not comps:
         return 'empty', ''
+    # slot ke bahar wale (page ke blue links/ads) ignore — sirf bade glyphs
+    big = [c for c in comps if c['h'] >= 0.18 * (y1 - y0)]
+    if big:
+        comps = big
 
-    # slot ka content signature — same rahe to cached verdict
+    # ⚡ 1) GEOMETRY (fast, OCR nahi)
+    state = _slot_verdict(comps)
+    if state is not None:
+        if ocr_cache is not None:
+            ocr_cache['state'] = state
+        return state, ''
+
+    # 2) geometry confuse -> chhota OCR (cached: same content par dobara nahi)
     xs = [c['x'] for c in comps]
     sig = (len(comps), sum(c['area'] for c in comps) // 50,
            min(xs) // 3, min(c['y'] for c in comps) // 3)
-    if ocr_cache is not None and ocr_cache.get('sig') == sig:
-        return ocr_cache.get('state', 'timer'), ocr_cache.get('text', '')
+    if ocr_cache is not None and ocr_cache.get('sig') == sig and ocr_cache.get('state'):
+        return ocr_cache['state'], ocr_cache.get('text', '')
 
-    state, text = None, ''
-    # 1) OCR (chhota crop — tez)
+    text, state = '', None
     try:
-        big = cv2.resize(sub, None, fx=3.0, fy=3.0, interpolation=cv2.INTER_CUBIC)
-        words = ocr_words(Image.fromarray(big), upscale=1, psm=7)
-        if not words:
-            words = ocr_words(Image.fromarray(big), upscale=1, psm=11)
-        txt = ' '.join(_clean(w['text']) for w in words if w.get('text')).strip()
-        text = txt
-        if txt:
-            # 'GO' me kam se kam 2 letters hote hain — akela glyph (9) misread ho
-            # kar 'go' ban jaye to use timer hi maano
-            broad = (len(comps) >= 2
-                     or (comps[0]['w'] / max(1.0, comps[0]['h'])) > 1.05)
-            if ('go' in txt or txt in ('g0',)) and broad:
-                state = 'go'
-            elif re.fullmatch(r'[0-9ils|]{1,3}', txt):
-                state = 'timer'
-            elif 'go' in txt:
-                state = 'timer'
+        # sirf blue glyphs ka bbox (page ka text andar na aaye)
+        bx0 = min(c['x'] for c in comps); by0 = min(c['y'] for c in comps)
+        bx1 = max(c['x'] + c['w'] for c in comps); by1 = max(c['y'] + c['h'] for c in comps)
+        pad = 4
+        crop = sub[max(0, by0 - pad):by1 + pad, max(0, bx0 - pad):bx1 + pad]
+        if crop.size:
+            big_c = cv2.resize(crop, None, fx=3.0, fy=3.0, interpolation=cv2.INTER_CUBIC)
+            words = ocr_words(Image.fromarray(big_c), upscale=1, psm=7)
+            txt = ' '.join(_clean(w['text']) for w in words if w.get('text')).strip()
+            text = txt
+            if txt:
+                broad = (len(comps) >= 2
+                         or (comps[0]['w'] / max(1.0, comps[0]['h'])) > 1.05)
+                if ('go' in txt or txt == 'g0') and broad:
+                    state = 'go'
+                elif re.fullmatch(r'[0-9ils|]{1,3}', txt):
+                    state = 'timer'
     except Exception:
         pass
 
-    # 2) OCR se pata na chale to geometry
     if state is None:
         state = 'go' if _slot_is_go(comps) else 'timer'
 
@@ -1150,8 +1195,10 @@ def go_state(frame_rgb, strip, detect_fn=None, allow_ocr=True):
     arr = np.array(frame_rgb)
     H, W = arr.shape[:2]
     h = max(20, strip[3] - strip[1])
-    x0 = max(0, strip[2]); x1 = min(W, strip[2] + int(3.0 * h))
-    y0 = max(0, strip[1] - int(0.8 * h)); y1 = min(H, strip[3] + int(1.0 * h))
+    # GO/countdown strip ke bilkul right me hota hai — chhota area lo,
+    # warna page ka doosra text bhi OCR me aa jata hai
+    x0 = max(0, strip[2] - 2); x1 = min(W, strip[2] + int(2.4 * h))
+    y0 = max(0, strip[1] - int(0.15 * h)); y1 = min(H, strip[3] + int(0.15 * h))
     if x1 - x0 < 10 or y1 - y0 < 10:
         return 'empty', ''
 
@@ -1245,7 +1292,7 @@ def click_cell(screen, cell, region=None, clicks=None, jitter=0):
             f"— screen {lim_w}x{lim_h}. Click skip.{C.RESET}")
         return False
 
-    pyautogui.moveTo(lx, ly, duration=0.2)
+    pyautogui.moveTo(lx, ly, duration=0.05)
     time.sleep(CONFIG['click_delay'])
 
     # moveTo ne kaam kiya? (DPI galat ho to yahan pakda jayega)
@@ -1601,7 +1648,8 @@ def run_auto(screen, region, dry_run=False, debug=False, go_required=True):
                     last_click = time.time()
                     wait_since = time.time()
                     last_state = ''
-                time.sleep(CONFIG['scan_interval'])
+                # 'GO' ke liye tez polling (sirf blue blob check hota hai)
+                time.sleep(min(CONFIG['scan_interval'], 0.1))
                 continue
 
             # ---- click register hua? (wahi CAPTCHA dikh raha hai to retry) ----
