@@ -1204,11 +1204,16 @@ STATE_HINT = {
 }
 
 
+CACHE_VERSION = 2      # v2 = naya 4-cell layout; purana cache auto-ignore
+
+
 def load_layout_cache(screen=None):
     """Pichli baar ka layout — isse start hote hi kaam shuru (full OCR nahi)."""
     try:
         with open(LAYOUT_CACHE) as f:
             d = json.load(f)
+        if d.get('v') != CACHE_VERSION:
+            return None       # purane layout ka cache (5-cell) -> phek do
         click = d.get('click')
         if not isinstance(click, dict):
             return None
@@ -1226,7 +1231,8 @@ def load_layout_cache(screen=None):
 
 def save_layout_cache(layout, screen=None):
     try:
-        d = {'click': layout['click'], 'box_rel': layout.get('box_rel'),
+        d = {'v': CACHE_VERSION, 'click': layout['click'],
+             'box_rel': layout.get('box_rel'),
              'ts': time.time(), 'saved': time.strftime('%Y-%m-%d %H:%M:%S')}
         if screen is not None:
             d['size'] = [screen.shot_w, screen.shot_h]
