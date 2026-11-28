@@ -70,6 +70,7 @@ CONFIG = {
     "blind_click": True,        # CAPTCHA detect na ho to seedha click (GO ka intezaar nahi)
     "blind_after": 1.2,         # itne second tak kuch detect na ho -> blind click
     "blind_cooldown": 2.5,      # do blind clicks ke beech gap
+    "max_captchas": 12,         # ek screen par max itne CAPTCHA track honge (8-10 browser)
     "blind_gap": 4.0,           # itne second tak kuch na mila ho tabhi blind click
                                 # (click ke turant baad page load ho raha ho to nahi)
     "debug": False,
@@ -818,6 +819,11 @@ def best_match(target_variants, cand_sig):
 
 
 # ==================== SOLVE ====================
+def _as_arr(frame_rgb):
+    """PIL frame ho to ek hi baar numpy me badlo — ndarray aaye to copy na karo."""
+    return frame_rgb if isinstance(frame_rgb, np.ndarray) else np.array(frame_rgb)
+
+
 def analyse(frame_rgb, region=None, words=None, go_required=True,
             click_word=None, check_go=False, box_rel=None):
     """
@@ -826,7 +832,7 @@ def analyse(frame_rgb, region=None, words=None, go_required=True,
     check_go=True par 'Go' ka chhota crop se pata chalta hai.
     Return dict: status ('ok','no_click','no_strip','no_boxes','no_target','wait_go')
     """
-    arr = np.array(frame_rgb)
+    arr = _as_arr(frame_rgb)
     if region:
         x, y, w, h = region
         arr = arr[max(0, y):y + h, max(0, x):x + w]
@@ -1071,7 +1077,7 @@ def _holes(mask):
 
 def strip_fingerprint(frame_rgb, strip):
     """Poore CAPTCHA strip ka chhota fingerprint — naya CAPTCHA aaya ya nahi, pata chale."""
-    arr = np.array(frame_rgb)
+    arr = _as_arr(frame_rgb)
     H, W = arr.shape[:2]
     x0, y0, x1, y1 = [int(v) for v in strip]
     x0, y0 = max(0, x0), max(0, y0)
@@ -1155,7 +1161,7 @@ def slot_state(frame_rgb, slot, ocr_cache=None):
     ⚡ GEOMETRY PEHLE (blob, ~2ms) — OCR sirf tab jab geometry confuse ho.
     (Pehle OCR pehle chalta tha -> har frame ~1s lagta tha, GO late pakda jata tha.)
     """
-    arr = np.array(frame_rgb)
+    arr = _as_arr(frame_rgb)
     H, W = arr.shape[:2]
     x0, y0, x1, y1 = [int(v) for v in slot]
     x0, y0 = max(0, x0), max(0, y0)
@@ -1174,10 +1180,15 @@ def slot_state(frame_rgb, slot, ocr_cache=None):
     state = _slot_verdict(comps) if len(comps) == 1 else None
     if state is not None:
         if ocr_cache is not None:
-            ocr_cache['state'] = state
+            # purana sig hata do — warna agle frame me wahi stale sig
+            # naya verdict 'resurrect' kar deta tha (GO miss ho jata tha)
+            ocr_cache.update({'state': state, 'sig': None, 'text': ''})
         return state, ''
 
-    # 2) geometry confuse -> chhota OCR (cached: same content par dobara nahi)
+    # 2) geometry confuse -> chhota OCR (sirf jab drawing badli ho)
+    #    ⚠️ waqt-based throttle yahan NAHI lagana: countdown digit se GO par
+    #    drawing badalte hi purana 'timer' 0.3s tak wapas milta tha ->
+    #    GO miss ho jata tha (kai CAPTCHA me click hi nahi hota).
     xs = [c['x'] for c in comps]
     sig = (len(comps), sum(c['area'] for c in comps) // 50,
            min(xs) // 3, min(c['y'] for c in comps) // 3)
@@ -1210,7 +1221,8 @@ def slot_state(frame_rgb, slot, ocr_cache=None):
         state = 'go' if _slot_is_go(comps) else 'timer'
 
     if ocr_cache is not None:
-        ocr_cache.update({'sig': sig, 'state': state, 'text': text})
+        ocr_cache.update({'sig': sig, 'state': state, 'text': text,
+                          't': time.time()})
     return state, text
 
 
@@ -1220,7 +1232,7 @@ def go_state(frame_rgb, strip, detect_fn=None, allow_ocr=True):
     Pehle slot_state() — wahi digit (9,8,7..) aur "GO" me farq karta hai.
     Blob na mile to crop ka OCR (chhota, tez).
     """
-    arr = np.array(frame_rgb)
+    arr = _as_arr(frame_rgb)
     H, W = arr.shape[:2]
     h = max(20, strip[3] - strip[1])
     # GO/countdown strip ke bilkul right me hota hai — chhota area lo,
@@ -1638,7 +1650,7 @@ def find_captchas(gray, arr, words):
     out.sort(key=lambda d: -d['score'])
     # kamzor candidates (ad/banner jaisa) hata do — "wrong captcha" click na ho
     strong = [d for d in out if d['score'] >= 3]
-    return (strong or out)[:8]
+    return (strong or out)[:CONFIG['max_captchas']]
 
 
 def _target_region(tr, frame_size):
@@ -1682,7 +1694,7 @@ def run_multi(screen, region=None, dry_run=False, debug=False, go_required=True)
                 words = locate_words(frame)
                 found = find_captchas(gray, arr, words)
                 last_detect = now
-                old_keys = {(t['strip'][0] // 24, t['strip'][1] // 24) for t in trackers}
+                _before = len(trackers)
                 for f in found:
                     key = (f['strip'][0] // 24, f['strip'][1] // 24)
                     if any(abs(t['strip'][0] - f['strip'][0]) < 24
@@ -1691,18 +1703,30 @@ def run_multi(screen, region=None, dry_run=False, debug=False, go_required=True)
                     trackers.append({'click': f['click'], 'strip': f['strip'],
                                      'last_click': 0.0, 'attempts': 0,
                                      'clicked_fp': None, 'fails': 0})
-                if found:
-                    log(f"{C.GREEN}✅ {len(found)} CAPTCHA mile — sabko track kar raha hoon"
-                        f"{C.RESET}")
+                if found and len(trackers) > _before:
+                    log(f"{C.GREEN}✅ {len(found)} CAPTCHA mile — "
+                        f"{len(trackers)} track par hain{C.RESET}")
 
-            # ---- har CAPTCHA ko check karo ----
+            # ---- har CAPTCHA ko check karo (10 browser = sasta rakhna zaroori) ----
             alive = []
             for i, tr in enumerate(trackers):
                 reg = _target_region(tr, (gray.shape[1], gray.shape[0]))
                 cw_local = dict(tr['click'])
                 cw_local['x'] -= reg[0]; cw_local['y'] -= reg[1]
-                res = analyse(frame, region=reg, click_word=cw_local,
-                              check_go=True, go_required=go_required)
+
+                # ⚡ 1) SIRF slot dekho (blue blobs, ~2ms) — timer chalta rehta hai
+                st, _txt = go_state(arr, (tr['strip'][2], tr['strip'][1],
+                                          tr['strip'][2], tr['strip'][3]))
+                if st != 'go':
+                    if _txt and _txt != tr.get('slot_txt'):
+                        tr['slot_txt'] = _txt
+                        log_t(i, f"{C.YELLOW}⏳ timer: {_txt}{C.RESET}")
+                    alive.append(tr)
+                    continue
+
+                # ⚡ 2) GO aa gaya -> ab poora analysis (shape match) sirf isi ka
+                res = analyse(arr, region=reg, click_word=cw_local,
+                              check_go=False, go_required=False)
                 if res['status'] in BAD_STATES:
                     tr['fails'] += 1
                     if tr['fails'] <= 3:
@@ -1726,11 +1750,8 @@ def run_multi(screen, region=None, dry_run=False, debug=False, go_required=True)
                     elif (now - tr['last_click']) < 3.0:
                         continue                    # abhi click kiya hai
 
-                if res['status'] == 'wait_go':
-                    txt = res.get('slot_text') or ''
-                    if txt and txt != tr.get('slot_txt'):
-                        tr['slot_txt'] = txt
-                        log_t(i, f"{C.YELLOW}⏳ timer: {txt}{C.RESET}")
+                if res['status'] != 'ok':
+                    alive.append(tr)
                     continue
 
                 # ---- 'GO' aa gaya -> usi time click ----
