@@ -824,6 +824,88 @@ def _as_arr(frame_rgb):
     return frame_rgb if isinstance(frame_rgb, np.ndarray) else np.array(frame_rgb)
 
 
+def _red_click_words(arr, max_words=24):
+    """
+    OCR ne 'Click' nahi padha (laal chhota text) to bhi geometry se dhoondho.
+    Surf Bash me clue ka label laal hota hai — isliye OCR fail ho jaye to bhi
+    CAPTCHA deta hai (kaafi screens par Tesseract ise miss kar deta hai).
+    """
+    if arr is None or not isinstance(arr, np.ndarray) or not arr.size:
+        return []
+    try:
+        a = arr.astype(np.int16)
+        r, g, b = a[:, :, 0], a[:, :, 1], a[:, :, 2]
+        mask = ((r > 110) & (r - g > 60) & (r - b > 60)).astype(np.uint8)
+        if not mask.any():
+            return []
+        n, _lab, st, _ = cv2.connectedComponentsWithStats(mask)
+    except Exception:
+        return []
+    comps = [(int(x), int(y), int(w), int(h)) for x, y, w, h, ar in st[1:]
+             if ar >= 6 and 6 <= h <= 34 and w <= 60]
+    if not comps:
+        return []
+    groups = []
+    for x, y, w, h in sorted(comps, key=lambda c: (c[1], c[0])):
+        for grp in groups:
+            gx0, gy0, gx1, gy1 = grp['box']
+            gh = gy1 - gy0
+            same_line = abs((y + h / 2.0) - (gy0 + gh / 2.0)) <= max(3, 0.6 * max(h, gh))
+            near = -4 <= (x - gx1) <= max(7, 0.9 * max(gh, h))
+            if same_line and near:
+                grp['box'] = (min(gx0, x), min(gy0, y),
+                              max(gx1, x + w), max(gy1, y + h))
+                grp['n'] += 1
+                break
+        else:
+            groups.append({'box': (x, y, x + w, y + h), 'n': 1})
+    out = []
+    for grp in groups:
+        x0, y0, x1, y1 = grp['box']
+        w, h = x1 - x0, y1 - y0
+        if grp['n'] < 3 or not (20 <= w <= 130) or not (8 <= h <= 34):
+            continue
+        if w / max(1.0, h) < 1.2:
+            continue
+        out.append({'text': 'click', 'x': float(x0), 'y': float(y0),
+                    'w': float(w), 'h': float(h), 'red': True})
+    # ek line par kai laal words = page ka text (jaise "Credit Earned! (18 Credits)")
+    # CAPTCHA ka 'Click' label akela hota hai -> use pehle rakho
+    for d in out:
+        cy = d['y'] + d['h'] / 2.0
+        same = sum(1 for o in out if o is not d
+                   and abs((o['y'] + o['h'] / 2.0) - cy) <= 0.7 * max(d['h'], o['h']))
+        d['solo'] = same == 0
+    out.sort(key=lambda d: (not d['solo'], d['y']))
+    return out[:max_words]
+
+
+def save_dump(arr, words, found=None, tag='fail', note=''):
+    """
+    Debug ke liye ek annotated screenshot — kya dikha, kaha dhoondha.
+    (User ise bhej de to pata chal jata hai detection kyu fail hui.)
+    """
+    try:
+        img = np.array(arr).copy()
+        if img.ndim == 2:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+        for w in (words or []):
+            x, y = int(w['x']), int(w['y'])
+            ww, hh = int(w['w']), int(w['h'])
+            col = (255, 140, 0) if w.get('red') else (0, 160, 0)
+            cv2.rectangle(img, (x, y), (x + ww, y + hh), col, 1)
+        for f in (found or []):
+            x0, y0, x1, y1 = [int(v) for v in f['strip']]
+            cv2.rectangle(img, (x0, y0), (x1, y1), (0, 0, 255), 2)
+            cv2.putText(img, f"cap {f.get('score', '')}", (x0, max(12, y0 - 4)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
+        path = f"clicker_dump_{tag}.png"
+        Image.fromarray(img).save(path)
+        return path
+    except Exception:
+        return None
+
+
 def analyse(frame_rgb, region=None, words=None, go_required=True,
             click_word=None, check_go=False, box_rel=None):
     """
@@ -846,6 +928,9 @@ def analyse(frame_rgb, region=None, words=None, go_required=True,
     else:
         if words is None:
             words = locate_words(Image.fromarray(arr))
+        words = list(words or [])
+        if find_word(words, 'click') is None:
+            words = words + _red_click_words(arr)
         go_w = find_word_exact(words, 'go', min_conf_h=10)
         # saare 'click' candidates me se wahi lo jo asli strip deta hai
         click_w, pre_cells, pre_strip, n_cand = find_captcha_layout(gray, words, arr=arr)
@@ -1174,6 +1259,20 @@ def slot_state(frame_rgb, slot, ocr_cache=None):
         return 'empty', ''
     # bahut chhote blue dots/bullets ignore (text glyphs nahi)
     comps = [c for c in comps if c['h'] >= max(6, 0.05 * (y1 - y0))]
+    if not comps:
+        return 'empty', ''
+    # timer/GO ke glyphs paas paas hote hain; page ka doosra blue text
+    # (SURF BASH logo, banner) door hota hai -> sirf pehla cluster lo
+    comps.sort(key=lambda c: c['x'])
+    gap = max(8, int(0.6 * (y1 - y0)))
+    cluster = [comps[0]]
+    for c in comps[1:]:
+        prev = cluster[-1]
+        if c['x'] - (prev['x'] + prev['w']) <= gap:
+            cluster.append(c)
+        else:
+            break
+    comps = cluster
 
     # ⚡ 1) GEOMETRY (fast) — sirf 1 glyph (9/8/7) par bharosa.
     # 2+ glyph = sautan ("10" vs "Go") -> OCR se pakka karo (cached, ek baar)
@@ -1603,7 +1702,14 @@ def find_captchas(gray, arr, words):
     Return: [{'click','cells','strip','target_idx','score'}] (score se sorted)
     """
     H, W = gray.shape[:2]
+    words = list(words or [])
     cands = [w for w in words if 'click' in _clean(w['text']) and w['h'] >= 6]
+    if not cands:
+        # OCR ne 'Click' miss kiya -> laal label geometry se dhoondho
+        reds = _red_click_words(arr)
+        if reds:
+            words = words + reds
+            cands = reds
     if not cands:
         return []
 
@@ -1675,6 +1781,7 @@ def run_multi(screen, region=None, dry_run=False, debug=False, go_required=True)
     trackers = []          # har CAPTCHA ka state
     words = None
     last_detect = 0.0
+    last_dump = 0.0        # debug screenshot (ek hi baar) ke liye
     last_click = 0.0
     blind_count = 0
     last_none = time.time()
@@ -1690,7 +1797,8 @@ def run_multi(screen, region=None, dry_run=False, debug=False, go_required=True)
             now = time.time()
 
             # ---- naye CAPTCHA dhoondho (OCR sirf zaroorat par) ----
-            if words is None or (now - last_detect) > 15.0 or not trackers:
+            if (words is None or (now - last_detect) > 15.0
+                    or (not trackers and (now - last_detect) > 0.8)):
                 words = locate_words(frame)
                 found = find_captchas(gray, arr, words)
                 last_detect = now
@@ -1706,6 +1814,15 @@ def run_multi(screen, region=None, dry_run=False, debug=False, go_required=True)
                 if found and len(trackers) > _before:
                     log(f"{C.GREEN}✅ {len(found)} CAPTCHA mile — "
                         f"{len(trackers)} track par hain{C.RESET}")
+                elif not found and not trackers and (now - last_dump) > 20.0:
+                    last_dump = now
+                    words = words or []
+                    nclick = sum(1 for w in words if 'click' in _clean(w['text']))
+                    reds = _red_click_words(arr)
+                    p = save_dump(arr, words + reds, [], tag='fail')
+                    log(f"{C.YELLOW}🔎 CAPTCHA nahi mila — OCR ne {len(words)} words "
+                        f"dekhe, 'Click' {nclick}, laal-label {len(reds)}"
+                        + (f" → screenshot: {p}" if p else "") + C.RESET)
 
             # ---- har CAPTCHA ko check karo (10 browser = sasta rakhna zaroori) ----
             alive = []
