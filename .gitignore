@@ -5,3 +5,5 @@ region.txt
 clicker_log.txt
 launcher_log.txt
 layout_cache.json
+clicker_dump_*.png
+clicker_slot_last.png

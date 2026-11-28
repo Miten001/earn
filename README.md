@@ -73,6 +73,9 @@ aur shapes **patli colored lines** (blue/green/red) se bante hain.
 - 🔤 **OCR fail ho to bhi chalta hai** — agar Tesseract laal "Click" label nahi padh pata,
   to wahi label **geometry se** dhoondh liya jata hai (laal chhote text ka grouping). Matlab
   "captcha detect hi nahi ho raha" wali problem khatam
+- 🎨 **"GO" kisi bhi color me** — timer/GO slot me ab sirf *blue* nahi, **kisi bhi rang ka ink**
+  dekha jata hai (blue / green / black / red). Border-table ki lines filter hoti hain, aur
+  door wala logo/banner (blue text) ignore hota hai
 - 🌐 **Browser background me bhi** — poori screen scan karta hai, window focus ki zaroorat nahi
 - 🖥️ **DPI-aware mode** — process ko per-monitor DPI-aware banata hai, isliye screenshot aur
   click dono **physical pixels** me hote hain → 125%/150% scaling par bhi click bilkul sahi jagah
@@ -148,7 +151,7 @@ Dono usi folder me bante hain jahan `clicker.py` hai.
 | **Click ho raha par CAPTCHA nahi ja raha** | Tool khud 3 baar retry karta hai (thoda alag point par). Phir bhi na ho to `--clicks 2` |
 | **Click nahi ho raha** | `--click-test` chalao (Notepad khol ke) — clicks kaam kar rahe hain ya nahi pata chalega. Phir `--no-wait-go` ya `--go-timeout 3` try karo |
 | **CAPTCHA detect hi nahi ho raha** | Naya version lo — "Click" label OCR se na mile to laal-text geometry se milta hai. Log me `🔎 CAPTCHA nahi mila — OCR ne N words dekhe...` aaye to uske saath bani **`clicker_dump_fail.png`** bhejo (usme dikhta hai tool ne kya dekha) |
-| **GO aane par click nahi ho raha** | Log me `GO` line aani chahiye. Aaye par click na ho to `--click-test` chalao — Windows scaling/DPI ka issue ho sakta hai. `--dry-run` se sirf detection test karo |
+| **GO aane par click nahi ho raha** | Log me `⏳ slot timer: blobs=... holes=...` line dekho: agar GO aane ke baad bhi `timer` hi likha hai to slot ka **`clicker_slot_last.png`** bhejo (usi jagah se crop hota hai). Ab GO kisi bhi color me detect hota hai. Click na ho par detection theek ho to `--click-test` chalao (DPI/scaling issue) |
 | **`no_strip` — boxes detect na hue** | `layout_cache.json` delete karke dobara chalao (naya version purana cache khud ignore karta hai) (agar page layout badla ho). Phir bhi na ho to `--manual` |
 | **Window khulte hi band ho jati hai** | Naya `clicker.bat` use karo (CRLF + har path par pause). Ya CMD me: `cmd /k python clicker.py --debug` — window kabhi band nahi hogi |
 | Error ki detail chahiye | Usi folder me **`clicker_log.txt`** kholo — poori traceback, Python version, OS sab save hota hai |
