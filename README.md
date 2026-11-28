@@ -168,6 +168,8 @@ Dono usi folder me bante hain jahan `clicker.py` hai.
 | Click bahut late ho raha | `--go-timeout 0` (default) rakho — click sirf "GO" dikhne par hota hai |
 | **Timer ke andar hi click ho jata hai** | Fix ho gaya — countdown digit (9,8,7) ab timer maana jata hai, GO nahi. `--debug` se `debug/` image bhejo agar phir bhi ho |
 | **Log me `no_strip` aata hai** | Ab background-color fallback hai; phir bhi aaye to `--manual` se region select karo |
+| **Random jagah par click ho raha** | Fix: multi mode me blind click ab **screen ke beech** nahi, sirf wahan jata hai jahan asli CAPTCHA tha. Saath hi page-text se bane fake CAPTCHA (chhote strip) filter ho jate hain. Phir bhi ho to log me `🎯 target: screen (x,y) -> click (a,b)` dekho — dono alag ho to `--calibrate` chalao (display scaling/DPI) |
+| **Click late ho raha (GO ke baad)** | Fix: slot ka OCR ab rate-limited hai (max ~3/sec) aur multi loop 0.04s par chalta hai — isliye 10 CAPTCHA par bhi GO turant pakda jata hai. Aur tez chahiye to `--interval 0.02` |
 | **Kisi doosri window par click ho raha** | Multi mode me har CAPTCHA apna `[#n]` tag dikhata hai — dekho kaunsa click ho raha hai. Sirf ek chahiye to `--single` |
 | **`🕳️ seedha click` bahut baar** | `--no-blind` lagao, ya `--manual` se region do (tab detection pakki ho jati hai) |
 | **Time khatam hone par click** | Fix: retry ab poore CAPTCHA ka fingerprint dekhta hai (pehle sirf shape) |

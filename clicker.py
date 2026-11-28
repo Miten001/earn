@@ -1123,6 +1123,8 @@ def print_scores(res):
 
 # ==================== TIMER / GO SLOT ====================
 _SLOT_CACHE = {}
+_SLOT_OCR_LAST = [0.0]      # OCR bahut mehnga hai (~0.2-0.5s) — rate limit
+_SLOT_OCR_GAP = 0.30
 
 
 def _blue_components(sub):
@@ -1356,7 +1358,16 @@ def slot_state(frame_rgb, slot, ocr_cache=None, detail=None, mode='ink'):
     if ocr_cache is not None and ocr_cache.get('sig') == sig and ocr_cache.get('state'):
         return ocr_cache['state'], ocr_cache.get('text', '')
 
+    # ⏱️ OCR rate limit: har 0.3s me sirf ek OCR (warna 8-10 CAPTCHA par
+    # har frame second bhar ka ho jata tha -> GO late pakda jata tha)
+    if (time.time() - _SLOT_OCR_LAST[0]) < _SLOT_OCR_GAP:
+        state = 'go' if _slot_is_go(comps) else 'timer'
+        if ocr_cache is not None:
+            ocr_cache.update({'state': state, 'sig': None, 'text': ''})
+        return state, ''
+
     text, state = '', None
+    _SLOT_OCR_LAST[0] = time.time()
     try:
         # sirf blue glyphs ka bbox (page ka text andar na aaye)
         bx0 = min(c['x'] for c in comps); by0 = min(c['y'] for c in comps)
@@ -1807,6 +1818,10 @@ def find_captchas(gray, arr, words):
             # duplicate strip (ek hi CAPTCHA ke 2 'click' words) -> skip
             if any(_overlap(strip, o['strip']) > 0.55 for o in out):
                 continue
+            # asli CAPTCHA strip itni chhoti nahi hoti (page text se bane
+            # "CAPTCHA" yahin ruk jate hain -> random jagah click nahi)
+            if (strip[3] - strip[1]) < 30 or (strip[2] - strip[0]) < 120:
+                continue
 
             # ---- score: kaunsa CAPTCHA sabse "pakka" lagta hai ----
             score = 0
@@ -1825,7 +1840,8 @@ def find_captchas(gray, arr, words):
                 score += 1               # CAPTCHA jaisa aspect
             # slot me timer/GO dikh raha hai? (sabse strong signal)
             try:
-                st, _ = go_state(np.array(Image.fromarray(arr)), (strip[2], strip[1], strip[2], strip[3]))
+                st, _ = go_state(arr, (strip[2], strip[1], strip[2], strip[3]),
+                                 allow_ocr=False)
                 if st in ('go', 'timer'):
                     score += 3
             except Exception:
@@ -1845,13 +1861,20 @@ def find_captchas(gray, arr, words):
 
 
 def _target_region(tr, frame_size):
-    """Tracker ke liye crop region (strip + right ka slot area)."""
+    """
+    Tracker ke liye crop region (strip + slot area) — (x, y, w, h) me.
+    ⚠️ Pehle yahan (x1, y1, x2, y2) laut raha tha aur caller use (x,y,w,h)
+    samajhta tha -> crop bahut bada ho jata tha (slow + page ka junk andar).
+    """
     W, H = frame_size
     x1, y1, x2, y2 = tr['strip']
     h = max(10, y2 - y1)
     pad = max(4, int(0.05 * h))
-    return (max(0, x1 - pad), max(0, y1 - pad),
-            min(W, x2 + int(2.6 * h)), min(H, y2 + pad))
+    rx = max(0, int(x1) - pad)
+    ry = max(0, int(y1) - pad)
+    rw = min(W - rx, int(x2 + 2.6 * h) - rx)
+    rh = min(H - ry, int(y2 + pad) - ry)
+    return (rx, ry, max(12, rw), max(12, rh))
 
 
 def run_multi(screen, region=None, dry_run=False, debug=False, go_required=True):
@@ -1870,6 +1893,7 @@ def run_multi(screen, region=None, dry_run=False, debug=False, go_required=True)
     last_click = 0.0
     blind_count = 0
     last_none = time.time()
+    last_known_pt = None       # aakhri asli CAPTCHA ka click point
 
     def log_t(i, msg):
         log(f"{C.MAGENTA}[#{i + 1}]{C.RESET} {msg}")
@@ -1896,6 +1920,12 @@ def run_multi(screen, region=None, dry_run=False, debug=False, go_required=True)
                     trackers.append({'click': f['click'], 'strip': f['strip'],
                                      'last_click': 0.0, 'attempts': 0,
                                      'clicked_fp': None, 'fails': 0})
+                    # blind click ke liye yaad rakho ki asli CAPTCHA kahan tha
+                    _cs = f.get('cells') or []
+                    if _cs:
+                        _c0 = _cs[0]
+                        last_known_pt = ((_c0[0] + _c0[2]) / 2.0,
+                                         (_c0[1] + _c0[3]) / 2.0)
                 if found and len(trackers) > _before:
                     log(f"{C.GREEN}✅ {len(found)} CAPTCHA mile — "
                         f"{len(trackers)} track par hain{C.RESET}")
@@ -1978,11 +2008,16 @@ def run_multi(screen, region=None, dry_run=False, debug=False, go_required=True)
                     continue
                 box_no = res['box_idx'].index(pick) + 1
                 tag = 'match' if reason == 'match' else 'RANDOM'
-                log_t(i, f"{C.GREEN}🟢 GO → Box{box_no} [{tag}] {sc:.2f}{C.RESET}")
+                _sc_all = ' '.join(f"{x:.2f}" for x in (res.get('scores') or []))
+                log_t(i, f"{C.GREEN}🟢 GO → Box{box_no} [{tag}] {sc:.2f}"
+                        f"{'' if tag == 'match' else f'  scores: {_sc_all}'}{C.RESET}")
                 if dry_run:
                     log_t(i, f"{C.CYAN}🧪 dry-run: click nahi{C.RESET}")
                 else:
                     click_cell(screen, res['cells'][pick], region=reg, clicks=CONFIG['clicks'])
+                    _c = res['cells'][pick]
+                    last_known_pt = ((_c[0] + _c[2]) / 2.0 + reg[0],
+                                     (_c[1] + _c[3]) / 2.0 + reg[1])
                 tr['last_click'] = last_click = now
                 tr['clicked_fp'] = res.get('fp')
                 tr['attempts'] = tr.get('attempts', 0) + 1
@@ -1990,28 +2025,25 @@ def run_multi(screen, region=None, dry_run=False, debug=False, go_required=True)
                 last_none = now
             trackers = alive
 
-            # ---- kuch bhi nahi mila -> blind click (bounded) ----
+            # ---- kuch bhi nahi mila -> blind click (sirf PEHLE SE JAANI jagah) ----
+            # ⚠️ screen ke beech me click karna = random jagah click (user ki shikayat).
+            # Isliye blind click sirf wahan jata hai jahan pehle asli CAPTCHA tha.
             if not trackers:
                 if (now - last_none) > 4.0 and (now - last_click) > 4.0 and blind_count < 5:
                     if CONFIG['blind_click'] and not dry_run:
-                        blind_count += 1
-                        pt = None
-                        if words:
-                            ws = [w for w in words if 'click' in _clean(w['text'])]
-                            if ws:
-                                pt = (ws[0]['x'] + ws[0]['w'] / 2.0,
-                                      ws[0]['y'] + ws[0]['h'] / 2.0)
-                        if pt is None:
-                            pt = (gray.shape[1] / 2.0, gray.shape[0] / 2.0)
-                        log(f"{C.YELLOW}🕳️  CAPTCHA nahi mila — seedha click "
-                            f"({blind_count}/5): ({pt[0]:.0f},{pt[1]:.0f}){C.RESET}")
-                        click_xy(screen, pt[0], pt[1])
-                        last_click = time.time()
+                        pt = last_known_pt
+                        if pt is not None:
+                            blind_count += 1
+                            log(f"{C.YELLOW}🕳️  CAPTCHA nahi mila — pichhli CAPTCHA "
+                                f"jagah click ({blind_count}/5): "
+                                f"({pt[0]:.0f},{pt[1]:.0f}){C.RESET}")
+                            click_xy(screen, pt[0], pt[1])
+                            last_click = time.time()
                 elif blind_count >= 5 and (now - last_click) > 10:
                     log(f"{C.RED}🛑 blind clicking band — `--manual` se region do{C.RESET}")
                     blind_count = 6
 
-            time.sleep(min(CONFIG['scan_interval'], 0.12))
+            time.sleep(min(CONFIG['scan_interval'], 0.04))
         except pyautogui.FailSafeException:
             raise
         except KeyboardInterrupt:
